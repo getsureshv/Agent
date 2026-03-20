@@ -1,0 +1,494 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #0a1628;
+    color: #e0e0e0;
+    min-height: 100vh;
+}
+
+#app {
+    max-width: 480px;
+    margin: 0 auto;
+    min-height: 100vh;
+}
+
+.screen {
+    display: none;
+    padding: 16px;
+}
+
+.screen.active {
+    display: block;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Setup Screen */
+#setup-screen h1 {
+    text-align: center;
+    font-size: 28px;
+    color: #4fc3f7;
+    margin: 24px 0;
+}
+
+.setup-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.form-group label {
+    font-size: 14px;
+    color: #90a4ae;
+    font-weight: 600;
+}
+
+.form-group input[type="text"],
+.form-group input[type="number"] {
+    padding: 10px 12px;
+    border: 1px solid #2a3a52;
+    border-radius: 8px;
+    background: #132038;
+    color: #e0e0e0;
+    font-size: 16px;
+}
+
+.radio-group {
+    display: flex;
+    gap: 20px;
+}
+
+.radio-group label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: normal;
+    cursor: pointer;
+}
+
+/* Buttons */
+.btn {
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+}
+
+.btn:active {
+    transform: scale(0.95);
+}
+
+.btn-primary {
+    background: #4fc3f7;
+    color: #0a1628;
+}
+
+.btn-primary:hover {
+    background: #29b6f6;
+}
+
+.btn-large {
+    padding: 14px 24px;
+    font-size: 18px;
+    width: 100%;
+    margin-top: 8px;
+}
+
+.btn-secondary {
+    background: #1e3250;
+    color: #90caf9;
+}
+
+.btn-secondary:hover {
+    background: #263f5e;
+}
+
+.btn-run {
+    background: #1b3a26;
+    color: #66bb6a;
+    min-width: 52px;
+    min-height: 48px;
+    font-size: 20px;
+}
+
+.btn-run:hover {
+    background: #255a35;
+}
+
+.btn-boundary {
+    background: #1a3a1a;
+    color: #43a047;
+}
+
+.btn-extra {
+    background: #3e2723;
+    color: #ffab91;
+    min-height: 44px;
+}
+
+.btn-extra:hover {
+    background: #4e342e;
+}
+
+.btn-wicket {
+    background: #b71c1c;
+    color: white;
+    min-height: 48px;
+    width: 100%;
+    font-size: 18px;
+}
+
+.btn-wicket:hover {
+    background: #c62828;
+}
+
+.btn-wicket-type {
+    background: #1e3250;
+    color: #ef9a9a;
+    width: 100%;
+    margin-bottom: 8px;
+}
+
+/* Match Header */
+.match-header {
+    background: #132038;
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+    margin-bottom: 12px;
+}
+
+.innings-indicator {
+    font-size: 12px;
+    color: #4fc3f7;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+}
+
+.score-display {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 10px;
+}
+
+#batting-team-name {
+    font-size: 16px;
+    color: #90caf9;
+}
+
+.score {
+    font-size: 36px;
+    font-weight: 700;
+    color: white;
+}
+
+.overs {
+    font-size: 14px;
+    color: #78909c;
+}
+
+.run-rate {
+    font-size: 13px;
+    color: #78909c;
+    margin-top: 4px;
+}
+
+/* Batsmen Panel */
+.batsmen-panel {
+    background: #132038;
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+}
+
+.batsman-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 0;
+}
+
+.batsman-name {
+    flex: 1;
+    font-size: 15px;
+}
+
+.batsman-indicator {
+    color: #4fc3f7;
+    font-weight: bold;
+    font-size: 18px;
+}
+
+.batsman-score {
+    font-weight: 600;
+    color: #a5d6a7;
+    font-size: 15px;
+}
+
+/* Bowler Panel */
+.bowler-panel {
+    background: #132038;
+    border-radius: 12px;
+    padding: 10px 16px;
+    margin-bottom: 8px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    font-size: 14px;
+}
+
+.bowler-label {
+    color: #78909c;
+}
+
+#bowler-name {
+    flex: 1;
+}
+
+#bowler-figures {
+    color: #ef9a9a;
+    font-weight: 600;
+}
+
+/* This Over */
+.this-over {
+    background: #132038;
+    border-radius: 12px;
+    padding: 10px 16px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+}
+
+.over-label {
+    color: #78909c;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.over-balls {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.ball-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.ball-dot { background: #37474f; color: #90a4ae; }
+.ball-run { background: #1b5e20; color: #a5d6a7; }
+.ball-four { background: #0277bd; color: #81d4fa; }
+.ball-six { background: #6a1b9a; color: #ce93d8; }
+.ball-wicket { background: #b71c1c; color: white; }
+.ball-wide { background: #4e342e; color: #ffab91; }
+.ball-noball { background: #4e342e; color: #ffcc80; }
+.ball-bye { background: #37474f; color: #80cbc4; }
+.ball-legbye { background: #37474f; color: #80cbc4; }
+
+/* Scoring Controls */
+.scoring-controls h3 {
+    font-size: 13px;
+    color: #78909c;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.runs-section, .extras-section, .wicket-section {
+    margin-bottom: 12px;
+}
+
+.btn-grid {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.actions-section {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.actions-section .btn {
+    flex: 1;
+    font-size: 13px;
+}
+
+/* Modal */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+}
+
+.modal-content {
+    background: #1a2d47;
+    border-radius: 16px;
+    padding: 24px;
+    width: 90%;
+    max-width: 400px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.modal-content h2 {
+    color: #4fc3f7;
+    margin-bottom: 16px;
+    text-align: center;
+}
+
+.modal-close {
+    float: right;
+    background: none;
+    border: none;
+    color: #78909c;
+    font-size: 28px;
+    cursor: pointer;
+}
+
+.wicket-types {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 12px;
+}
+
+.player-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 12px;
+}
+
+.player-list .btn {
+    text-align: left;
+}
+
+/* Scorecard */
+.scorecard-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 16px;
+    font-size: 13px;
+}
+
+.scorecard-table th {
+    text-align: left;
+    padding: 8px 6px;
+    border-bottom: 2px solid #2a3a52;
+    color: #78909c;
+    font-size: 11px;
+    text-transform: uppercase;
+}
+
+.scorecard-table td {
+    padding: 6px;
+    border-bottom: 1px solid #1e3250;
+}
+
+.scorecard-table .player-name {
+    max-width: 120px;
+}
+
+.scorecard-table .dismissal {
+    color: #78909c;
+    font-size: 11px;
+}
+
+.scorecard-table .num {
+    text-align: right;
+    font-weight: 600;
+}
+
+.scorecard-team-header {
+    font-size: 18px;
+    color: #4fc3f7;
+    margin: 16px 0 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #2a3a52;
+}
+
+.scorecard-total {
+    font-weight: 700;
+    font-size: 15px;
+    color: white;
+    padding: 8px 0;
+}
+
+.scorecard-extras {
+    color: #ffab91;
+    font-size: 13px;
+    padding: 4px 0;
+}
+
+.bowling-table th,
+.bowling-table td {
+    text-align: right;
+}
+
+.bowling-table th:first-child,
+.bowling-table td:first-child {
+    text-align: left;
+}
+
+/* Result Screen */
+#result-screen {
+    text-align: center;
+    padding-top: 60px;
+}
+
+#result-screen h1 {
+    color: #4fc3f7;
+    font-size: 22px;
+    margin-bottom: 24px;
+    line-height: 1.4;
+}
+
+#result-summary {
+    margin-bottom: 32px;
+}
+
+/* Responsive */
+@media (max-width: 360px) {
+    .btn-run {
+        min-width: 44px;
+        min-height: 42px;
+        font-size: 18px;
+    }
+}
