@@ -63,6 +63,59 @@
     // ── Setup ──────────────────────────────────────────────
     const $ = (id) => document.getElementById(id);
 
+    // Update toss radio labels when team names change
+    $("team1-name").addEventListener("input", updateTossLabels);
+    $("team2-name").addEventListener("input", updateTossLabels);
+
+    function updateTossLabels() {
+        const t1 = $("team1-name").value.trim() || "Team A";
+        const t2 = $("team2-name").value.trim() || "Team B";
+        const radio1 = $("toss-team1-label").querySelector("input");
+        const radio2 = $("toss-team2-label").querySelector("input");
+        $("toss-team1-label").innerHTML = "";
+        $("toss-team1-label").appendChild(radio1);
+        $("toss-team1-label").append(" " + t1);
+        $("toss-team2-label").innerHTML = "";
+        $("toss-team2-label").appendChild(radio2);
+        $("toss-team2-label").append(" " + t2);
+    }
+
+    // Step 1: Setup -> Player entry
+    $("next-to-players-btn").addEventListener("click", goToPlayerEntry);
+
+    function goToPlayerEntry() {
+        const team1 = $("team1-name").value.trim() || "Team A";
+        const team2 = $("team2-name").value.trim() || "Team B";
+        const playersPerTeam = parseInt($("players-per-team").value) || 11;
+
+        $("team1-players-heading").textContent = team1;
+        $("team2-players-heading").textContent = team2;
+
+        buildPlayerInputs("team1-player-inputs", team1, playersPerTeam);
+        buildPlayerInputs("team2-player-inputs", team2, playersPerTeam);
+
+        showScreen("players-screen");
+    }
+
+    function buildPlayerInputs(containerId, teamName, count) {
+        const container = $(containerId);
+        container.innerHTML = "";
+        for (let i = 0; i < count; i++) {
+            const row = document.createElement("div");
+            row.className = "player-input-row";
+            row.innerHTML = `<span>${i + 1}.</span><input type="text" placeholder="${teamName} Player ${i + 1}" value="">`;
+            container.appendChild(row);
+        }
+    }
+
+    function readPlayerNames(containerId, teamName, count) {
+        const inputs = $(containerId).querySelectorAll("input");
+        return Array.from(inputs).map((inp, i) => inp.value.trim() || `${teamName} Player ${i + 1}`);
+    }
+
+    $("back-to-setup-btn").addEventListener("click", () => showScreen("setup-screen"));
+
+    // Step 2: Player entry -> Start match
     $("start-match-btn").addEventListener("click", startMatch);
 
     function startMatch() {
@@ -73,8 +126,8 @@
         const tossWinner = document.querySelector('input[name="toss-winner"]:checked').value;
         const tossDecision = document.querySelector('input[name="toss-decision"]:checked').value;
 
-        const team1Players = Array.from({ length: playersPerTeam }, (_, i) => `${team1} Player ${i + 1}`);
-        const team2Players = Array.from({ length: playersPerTeam }, (_, i) => `${team2} Player ${i + 1}`);
+        const team1Players = readPlayerNames("team1-player-inputs", team1, playersPerTeam);
+        const team2Players = readPlayerNames("team2-player-inputs", team2, playersPerTeam);
 
         let battingFirst, bowlingFirst, battingPlayers, bowlingPlayers;
         if (tossWinner === "team1") {
@@ -273,7 +326,12 @@
             bowler.runs += total;
             bowler.runsThisOver += total;
             const striker = inn.batsmen[inn.strikerIndex];
-            striker.balls += 0; // no-ball doesn't count as a ball faced (optional)
+            // Additional runs off a no-ball are credited to the batsman
+            if (additionalRuns > 0) {
+                striker.runs += additionalRuns;
+                if (additionalRuns === 4) striker.fours++;
+                if (additionalRuns === 6) striker.sixes++;
+            }
             inn.thisOver.push({ label: `NB+${additionalRuns}`, chipClass: "ball-noball" });
             if (additionalRuns % 2 === 1) swapStrike(inn);
         } else if (type === "bye") {
@@ -577,8 +635,12 @@
             });
             html += `</table>`;
 
-            const totalExtras = inn.extras.wides + inn.extras.noBalls + inn.extras.byes + inn.extras.legByes;
-            html += `<div class="scorecard-extras">Extras: ${totalExtras} (wd ${inn.extras.wides}, nb ${inn.extras.noBalls}, b ${inn.extras.byes}, lb ${inn.extras.legByes})</div>`;
+            const wd = inn.extras.wides || 0;
+            const nb = inn.extras.noBalls || 0;
+            const by = inn.extras.byes || 0;
+            const lb = inn.extras.legByes || 0;
+            const totalExtras = wd + nb + by + lb;
+            html += `<div class="scorecard-extras">Extras: ${totalExtras} (wd ${wd}, nb ${nb}, b ${by}, lb ${lb})</div>`;
 
             // Bowling
             if (inn.bowlers.length > 0) {

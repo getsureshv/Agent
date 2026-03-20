@@ -484,6 +484,68 @@ body {
     margin-bottom: 32px;
 }
 
+/* Player Entry Screen */
+#players-screen h1 {
+    text-align: center;
+    font-size: 28px;
+    color: #4fc3f7;
+    margin: 24px 0 16px;
+}
+
+.players-entry {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding-bottom: 24px;
+}
+
+.team-players-section h2 {
+    color: #90caf9;
+    font-size: 18px;
+    margin-bottom: 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #2a3a52;
+}
+
+.player-inputs {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.player-input-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.player-input-row span {
+    color: #78909c;
+    font-size: 13px;
+    min-width: 24px;
+    text-align: right;
+}
+
+.player-input-row input {
+    flex: 1;
+    padding: 8px 10px;
+    border: 1px solid #2a3a52;
+    border-radius: 8px;
+    background: #132038;
+    color: #e0e0e0;
+    font-size: 15px;
+}
+
+.player-entry-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.player-entry-actions .btn {
+    flex: 1;
+}
+
 /* Responsive */
 @media (max-width: 360px) {
     .btn-run {
