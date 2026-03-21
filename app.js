@@ -829,10 +829,10 @@
 
             // Batting
             html += `<table class="scorecard-table"><tr><th>Batsman</th><th class="num">R</th><th class="num">B</th><th class="num">4s</th><th class="num">6s</th><th class="num">SR</th></tr>`;
-            inn.batsmen.forEach((b) => {
+            inn.batsmen.forEach((b, bIdx) => {
                 if (b.balls > 0 || b.isOut) {
                     const dismissal = b.isOut ? b.dismissal : "not out";
-                    html += `<tr><td class="player-name">${b.name}<br><span class="dismissal">${dismissal}</span></td><td class="num">${b.runs}</td><td class="num">${b.balls}</td><td class="num">${b.fours}</td><td class="num">${b.sixes}</td><td class="num">${b.strikeRate()}</td></tr>`;
+                    html += `<tr class="scorecard-clickable" data-type="batsman" data-innings="${idx}" data-index="${bIdx}"><td class="player-name">${b.name}<br><span class="dismissal">${dismissal}</span></td><td class="num">${b.runs}</td><td class="num">${b.balls}</td><td class="num">${b.fours}</td><td class="num">${b.sixes}</td><td class="num">${b.strikeRate()}</td></tr>`;
                 }
             });
             html += `</table>`;
@@ -847,15 +847,29 @@
             // Bowling
             if (inn.bowlers.length > 0) {
                 html += `<table class="scorecard-table bowling-table"><tr><th>Bowler</th><th>O</th><th>M</th><th>R</th><th>W</th><th>Econ</th></tr>`;
-                inn.bowlers.forEach((bw) => {
+                inn.bowlers.forEach((bw, bwIdx) => {
                     const overs = bw.overs + "." + bw.ballsInOver;
-                    html += `<tr><td>${bw.name}</td><td>${overs}</td><td>${bw.maidens}</td><td>${bw.runs}</td><td>${bw.wickets}</td><td>${bw.economy()}</td></tr>`;
+                    html += `<tr class="scorecard-clickable" data-type="bowler" data-innings="${idx}" data-index="${bwIdx}"><td>${bw.name}</td><td>${overs}</td><td>${bw.maidens}</td><td>${bw.runs}</td><td>${bw.wickets}</td><td>${bw.economy()}</td></tr>`;
                 });
                 html += `</table>`;
             }
         });
         return html;
     }
+
+    // Scorecard row click delegation
+    $("scorecard-content").addEventListener("click", (e) => {
+        const row = e.target.closest(".scorecard-clickable");
+        if (!row) return;
+        const innIdx = parseInt(row.dataset.innings);
+        const index = parseInt(row.dataset.index);
+        const inn = match.innings[innIdx];
+        if (row.dataset.type === "batsman") {
+            showBatsmanDetail(inn.batsmen[index]);
+        } else if (row.dataset.type === "bowler") {
+            showBowlerDetail(inn.bowlers[index]);
+        }
+    });
 
     // ── Modal Helpers ──────────────────────────────────────
     function showModal(id) {
