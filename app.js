@@ -1942,6 +1942,220 @@
 <li><strong>Revoke Last Signal</strong> — touches both shoulders with hands</li>
 </ul>`
         },
+        ntca_toss: {
+            title: "NTCA Toss & Match Start Rules",
+            content: `<h3>NTCA Toss & Match Start Rules</h3>
+<ul>
+<li><strong>Minimum players for toss:</strong> 8 players must be physically present on the field of play for the toss to take place per side</li>
+<li><strong>Toss decision:</strong> The captain must inform his/her decision to bat or bowl <strong>immediately</strong> after winning the toss</li>
+<li>If a team doesn't have minimum players at the time of the toss:
+  <ol>
+  <li>The umpires shall award the toss to the team who have 8 or more at the ground</li>
+  <li>If umpires are satisfied, the game shall start at scheduled time with the team forced to take the field with reduced members</li>
+  <li>Umpire shall deduct <strong>one over for every 5 minutes delay</strong> after start time for the team with less than minimum players</li>
+  <li>The umpires shall wait <strong>45 more minutes</strong> after start time, before awarding the game to the team with at least 8 players as a forfeit</li>
+  </ol>
+</li>
+</ul>`
+        },
+        ntca_fielding: {
+            title: "NTCA Fielding & Penalty Rules",
+            content: `<h3>NTCA Fielding & Penalty Rules</h3>
+<ul>
+<li><strong>Late fielder:</strong> Must take the field within <strong>75 minutes</strong> or the first drinks break (whichever comes first) for a primary league game, and before completion of the <strong>10th over</strong> for a T20 game</li>
+<li><strong>Penalty time for leaving the field:</strong> A fielder who goes out of the ground needs to serve penalty time before bowling. Maximum time out without penalty: <strong>8 minutes</strong></li>
+<li><strong>Fielder returning without permission:</strong> If a player returns to the field without umpire permission and contacts the ball:
+  <ol>
+  <li>Umpire calls Dead Ball immediately</li>
+  <li>5 Penalty runs awarded to the batting side</li>
+  <li>Runs completed by batsmen are scored, plus run in progress if they had already crossed</li>
+  <li>The ball shall not count as one of the over</li>
+  <li>Inform batsmen, fielding captain, and the other umpire</li>
+  </ol>
+</li>
+<li><strong>Fielder leaving and batting:</strong> A fielder who leaves the ground before end of innings must wait the equivalent penalty time before batting (or after fall of 5 wickets, whichever is earlier). Exception: external injury sustained during the match — no penalty time required</li>
+<li><strong>Unfair fielder movement:</strong> If a fielder makes unfair movement behind the batsman, the umpire calls <strong>Dead Ball</strong></li>
+<li><strong>Leg-side fielding restriction:</strong> If more than 2 fielders (other than wicketkeeper) are behind the batting crease on the on side, the umpire calls <strong>No Ball</strong></li>
+</ul>`
+        },
+        ntca_noball: {
+            title: "NTCA No Ball Rules",
+            content: `<h3>NTCA No Ball Rules</h3>
+<p><strong>Instances when the bowler's end umpire calls No Ball:</strong></p>
+<ul>
+<li>Foot infringement (front foot or back foot) by the bowler</li>
+<li>The bowler changing mode of delivery without informing the umpire</li>
+<li>The bowler breaks the wicket at the non-striker's end in the course of delivering the ball</li>
+<li>The bowler bowls underarm</li>
+<li>The ball being delivered pitches outside the crease</li>
+</ul>
+<p><strong>Short-pitched deliveries (NTCA):</strong> Only <strong>1 short-pitched ball above shoulder height</strong> is allowed per over in all limited-over formats conducted by NTCA</p>
+<p><strong>Beamer / Full pitch (waist height):</strong> The definition of "waist" for judging No Balls is the area between the <strong>top of the striker's hip and his bottom rib</strong></p>
+<p><strong>Deliberate high full pitch (Law 41.7.1):</strong></p>
+<ol>
+<li>Umpire immediately calls and signals No Ball</li>
+<li>When ball is dead, direct the fielding captain to <strong>suspend the bowler immediately</strong></li>
+<li>Inform the other umpire</li>
+<li>The bowler shall <strong>not be allowed to bowl again in that innings</strong></li>
+<li>Report to batters and batting captain</li>
+<li>Report the incident to NTCA OC</li>
+</ol>
+<p><strong>Wicketkeeper position:</strong> If the wicketkeeper's hands are on the bowling crease but withdrawn before delivery, it is <strong>not a No Ball</strong> (no infringement at moment of delivery)</p>`
+        },
+        ntca_deadball: {
+            title: "NTCA Dead Ball Rules",
+            content: `<h3>NTCA Dead Ball Rules</h3>
+<p><strong>The ball automatically becomes dead when:</strong></p>
+<ul>
+<li>It is finally settled in the hands of the wicketkeeper or bowler and no further action is possible</li>
+<li>A <strong>boundary</strong> is scored</li>
+<li>A batsman is <strong>dismissed</strong></li>
+<li>The <strong>innings is concluded</strong></li>
+<li>Whether played or not, the ball <strong>lodges within the clothing or equipment</strong> of a batsman or umpire</li>
+</ul>
+<p><strong>Ball delivery from standing position:</strong> When a bowler has no run-up (delivering from a standing position astride the bowling crease), the ball comes into play the moment <strong>his arm starts to move in the delivery swing</strong></p>
+<p><strong>Bowler breaks stumps:</strong> If the bowler breaks the stumps in delivering the ball, the umpire calls <strong>Dead Ball</strong></p>`
+        },
+        ntca_dismissals: {
+            title: "NTCA Dismissal Scenarios",
+            content: `<h3>NTCA Dismissal Scenarios</h3>
+<p><strong>Dismissals from a No Ball:</strong></p>
+<ul>
+<li>Hit the ball twice</li>
+<li>Obstructing the field</li>
+<li>Run out</li>
+</ul>
+<p><strong>Dismissals from a Wide Ball:</strong></p>
+<ul>
+<li>Hit Wicket</li>
+<li>Obstructing the field</li>
+<li>Run out</li>
+<li>Stumped</li>
+</ul>
+<p><strong>Caught off a No Ball:</strong> If a batsman is caught in slips but the umpire signals No Ball, the batsman is <strong>Not Out</strong>. However, if the batsman doesn't realize and leaves the crease, and a fielder breaks the stumps, the batsman <strong>can be Run Out</strong> on appeal</p>
+<p><strong>Fielder catches with cap:</strong> The ball becomes dead and <strong>5 penalty runs</strong> are awarded to the batting side</p>
+<p><strong>Stumped vs Run Out scenarios (striker not attempting a run):</strong></p>
+<ul>
+<li>Ball rebounds from keeper's pads onto stumps → <strong>Stumped</strong></li>
+<li>Ball thrown by keeper onto stumps → <strong>Stumped</strong></li>
+<li>Ball rebounds from keeper's helmet onto stumps → <strong>Stumped</strong></li>
+<li>Ball flies off keeper's helmet to slip who throws onto stumps → <strong>Run Out</strong></li>
+</ul>
+<p><strong>Avoiding injury:</strong> If a batsman was within his ground and then left to avoid injury, and the wicket is put down by keeper receiving a throw, the batsman is <strong>Not Out</strong></p>
+<p><strong>Striker's end umpire dismissals:</strong> Stumped, Hit Wicket, Run Out at striker's end</p>`
+        },
+        ntca_lbw: {
+            title: "NTCA LBW Considerations",
+            content: `<h3>NTCA LBW Considerations</h3>
+<p>The bowler's end umpire must consider <strong>all</strong> of the following conditions for an LBW appeal:</p>
+<ol>
+<li>The ball delivered is <strong>not a No Ball</strong></li>
+<li>If not intercepted in full, pitches <strong>in the line between wicket to wicket</strong> or on the striker's off-side</li>
+<li>The ball should <strong>not have touched the bat first</strong></li>
+<li>The striker has intercepted the ball with <strong>any part of his person</strong></li>
+<li><strong>Point of impact:</strong>
+  <ul>
+  <li>If shot is offered — between wicket to wicket</li>
+  <li>If no shot is offered — between wicket to wicket OR striker's off-side</li>
+  </ul>
+</li>
+<li>The ball <strong>would have hit the stumps</strong> if there was no interception</li>
+</ol>`
+        },
+        ntca_penalty: {
+            title: "NTCA Penalty Runs & Helmet",
+            content: `<h3>NTCA Penalty Runs & Helmet Rules</h3>
+<p><strong>Ball strikes fielder's helmet on ground:</strong></p>
+<p>Example: After the striker hits the ball (not a No Ball), batsmen complete 2 runs and have crossed on the third when the ball strikes a fielder's protective helmet on the ground:</p>
+<ul>
+<li>Runs scored to the <strong>batting side: 8 runs</strong> (2 completed + 1 in progress since crossed + 5 penalty)</li>
+<li>Runs scored to the <strong>striker: 3 runs</strong> (2 completed + 1 in progress)</li>
+</ul>
+<p><strong>Umpire can award 5 penalty runs to the fielding side</strong> if a batsman has been warned and yet continues to deliberately waste time — <strong>True</strong></p>
+<p><strong>Umpire possession of the ball:</strong> The umpire takes possession of the ball at the fall of each wicket and at the start of any interval or interruption</p>`
+        },
+        ntca_powerplay: {
+            title: "NTCA Powerplay Rules",
+            content: `<h3>NTCA Powerplay Rules</h3>
+<p><strong>45-over game — 3 Power Plays:</strong></p>
+<ul>
+<li><strong>Power Play 1</strong> (20% of total overs) — Overs 0-9: Max <strong>2 fielders</strong> outside the 30-yard circle</li>
+<li><strong>Power Play 2</strong> (60% of total overs) — Overs 10-36: Max <strong>4 fielders</strong> outside the 30-yard circle</li>
+<li><strong>Power Play 3</strong> (20% of total overs) — Overs 36-45: Max <strong>5 fielders</strong> outside the 30-yard circle</li>
+</ul>`
+        },
+        ntca_ground: {
+            title: "NTCA Ground Setup & Home Team",
+            content: `<h3>NTCA Ground Setup & Home Team Responsibilities</h3>
+<p><strong>Ground setup responsibility:</strong> The <strong>designated home team</strong> is responsible for setting up the ground — stumps, bails, boundary, crease, etc.</p>
+<p><strong>Penalties for delay in ground setup:</strong></p>
+<ol>
+<li>If ground preparation is not completed <strong>15 minutes before</strong> the scheduled game start time, the home team automatically loses <strong>1 over</strong> from its quota</li>
+<li>If ground preparation is not completed by the scheduled start time, the home team loses <strong>3 overs</strong> from its quota</li>
+<li>Every subsequent <strong>5-minute delay</strong> reduces one more over from the home team's quota</li>
+</ol>
+<p><strong>Fitness of ground:</strong> The umpires are the final judges of the fitness of ground, weather, and light for play (Law 3, Sections 8-10)</p>`
+        },
+        ntca_match: {
+            title: "NTCA Match Format Rules",
+            content: `<h3>NTCA Match Format Rules</h3>
+<p><strong>Primary League (40-over match):</strong></p>
+<ul>
+<li>Minimum overs in both innings for a result: <strong>20 overs</strong></li>
+</ul>
+<p><strong>T20 Match:</strong></p>
+<ul>
+<li>Time duration per innings: <strong>1 hour 20 minutes (1h:20m)</strong></li>
+</ul>
+<p><strong>Switch Hit ruling:</strong> When a striker attempts a switch hit (changes stance to opposite hand), both sides of his wicket are treated as his off-side. If the ball passes within the 35-inch wide guidance mark of the striker's revised off-side, it is a <strong>fair delivery</strong> (not wide)</p>`
+        },
+        ntca_over_misc: {
+            title: "NTCA Over Miscounting & Miscellaneous",
+            content: `<h3>NTCA Over Miscounting & Miscellaneous Rules</h3>
+<p><strong>Umpire miscounts an over (e.g., 7th delivery bowled as No Ball):</strong></p>
+<ul>
+<li>When umpires realize the miscounting, they call "Over" immediately when the ball is dead — even if the extra ball was a No Ball</li>
+<li>The over as counted by the umpires shall stand</li>
+<li>All runs scored in the extra delivery (including No Ball and penalty runs) are allowed to the batting side</li>
+<li>Any penalty runs to the fielding side and any dismissals shall also stand</li>
+</ul>
+<p><strong>Caught on last ball — who takes strike?</strong> If a batsman is out caught on the last ball of the over and both batsmen crossed before the catch, the <strong>non-striker</strong> takes strike for the first ball of the next over</p>
+<p><strong>Bowling penalty time:</strong> A player going out of the ground during innings must serve penalty time before bowling. Leaving the field for under 8 minutes does not require penalty time</p>
+<p><strong>Ball at rest before striker:</strong> If a ball comes to rest in front of the line of the striker's wicket without touching bat or person, the umpire calls and signals <strong>Dead Ball</strong></p>
+<p><strong>Bat/glove contact definition:</strong> Contact between the ball and any part of a glove worn on the striker's hand <strong>not holding the bat</strong> is NOT considered as the ball striking the bat</p>
+<p><strong>Umpire moving to off side:</strong> The striker's end umpire must <strong>inform the striker and the other umpire</strong> before moving to the off side</p>`
+        },
+        usacua_exam: {
+            title: "USACUA Umpire Exam Q&A",
+            content: `<h3>USACUA Level 1 Umpire Exam — Key Q&A</h3>
+<p><strong>Interference & Obstruction:</strong></p>
+<ul>
+<li>If a fielder illegally fields the ball (detached equipment, cap, etc.), the umpire awards <strong>5 penalty runs</strong> to the batting team</li>
+<li>If a batsman willfully obstructs or distracts the fielding side by word or action, the batsman is <strong>Out — Obstructing the Field</strong></li>
+</ul>
+<p><strong>Catches:</strong></p>
+<ul>
+<li>A fielder must be <strong>within the field of play</strong> (touching the ground inside the boundary) when completing a catch for it to be valid</li>
+<li>A fielder may jump from within the field to catch the ball in mid-air, as long as the first contact with the ground after the catch is within the boundary</li>
+</ul>
+<p><strong>Ball Becoming Dead:</strong></p>
+<ul>
+<li>A ball struck by the batsman is caught by the wicket-keeper after bouncing off a fielder's helmet → ball is <strong>dead</strong>, batsman is <strong>Not Out</strong></li>
+<li>A ball lodging in the wicket-keeper's pads → <strong>Dead Ball</strong></li>
+</ul>
+<p><strong>Over & Bowling:</strong></p>
+<ul>
+<li>A bowler may change from over-the-wicket to round-the-wicket during an over, but must <strong>notify the umpire</strong> each time</li>
+<li>A No Ball is called if the bowler's <strong>back foot</strong> touches or lands outside the return crease</li>
+</ul>
+<p><strong>Wide Ball in T20:</strong> The wide-ball guideline is stricter in T20 formats — the ball must pass within reach of the batsman playing a normal cricket stroke</p>
+<p><strong>Run Out:</strong></p>
+<ul>
+<li>If batsmen are at the same end and the wicket is broken, the batsman <strong>who was out of ground</strong> for the latest completed run is out</li>
+<li>If neither has left, the batsman at the end where the wicket is broken is out</li>
+</ul>
+<p><strong>Timed Out:</strong> A new batsman must be ready to receive or for the partner to face within <strong>3 minutes</strong> of the fall of wicket (2 minutes in T20)</p>`
+        },
     };
 
     $("chat-fab").addEventListener("click", () => {
