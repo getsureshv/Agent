@@ -3,8 +3,98 @@
 
     // ── State ──────────────────────────────────────────────
     let match = null;
-    let tournament = null; // { name, format, overs, playersPerTeam, teams: [{name, players:[]}], fixtures: [{team1, team2, result, winner, played}], pointsTable: {} }
+    let tournament = null;
     let currentFixtureIndex = -1;
+
+    // ── Match Persistence ───────────────────────────────────
+    function matchStorageKey() {
+        if (tournament && currentFixtureIndex >= 0) {
+            return "cricket_match_" + tournament.name + "_" + currentFixtureIndex;
+        }
+        return "cricket_match_quick";
+    }
+
+    function saveMatchState() {
+        if (!match) return;
+        const key = matchStorageKey();
+        const data = {
+            match: JSON.parse(JSON.stringify(match)),
+            currentFixtureIndex,
+            tournamentName: tournament ? tournament.name : null,
+        };
+        localStorage.setItem(key, JSON.stringify(data));
+        // Also mark fixture as in-progress in tournament
+        if (tournament && currentFixtureIndex >= 0) {
+            const fixture = tournament.fixtures[currentFixtureIndex];
+            if (!fixture.played) {
+                fixture.inProgress = true;
+                fixture.liveScore = buildLiveScoreSummary();
+            }
+            saveTournament();
+        }
+    }
+
+    function buildLiveScoreSummary() {
+        if (!match || !match.innings || match.innings.length === 0) return "";
+        const inn = match.innings[match.currentInnings];
+        let summary = inn.battingTeam + " " + inn.totalRuns + "/" + inn.totalWickets + " (" + formatOvers(inn.totalBalls) + " ov)";
+        if (match.currentInnings === 1) {
+            summary += " | Target: " + (match.innings[0].totalRuns + 1);
+        }
+        return summary;
+    }
+
+    function loadMatchState(key) {
+        const raw = localStorage.getItem(key);
+        if (!raw) return null;
+        const data = JSON.parse(raw);
+        // Rebuild methods on batsmen and bowlers
+        data.match.innings.forEach(inn => {
+            inn.batsmen = inn.batsmen.map(b => {
+                const p = createPlayer(b.name);
+                Object.assign(p, b);
+                p.ballHistory = b.ballHistory || [];
+                return p;
+            });
+            inn.bowlers = inn.bowlers.map(b => {
+                const bw = createBowler(b.name);
+                Object.assign(bw, b);
+                bw.overHistory = (b.overHistory || []).map(o => ({ balls: [...o.balls], runs: o.runs }));
+                bw.currentOverBalls = b.currentOverBalls || [];
+                return bw;
+            });
+            // Rebuild history entries too
+            inn.history = (inn.history || []).map(snap => {
+                snap.batsmen = snap.batsmen.map(b => {
+                    const p = createPlayer(b.name);
+                    Object.assign(p, b);
+                    p.ballHistory = b.ballHistory || [];
+                    return p;
+                });
+                snap.bowlers = snap.bowlers.map(b => {
+                    const bw = createBowler(b.name);
+                    Object.assign(bw, b);
+                    bw.overHistory = (b.overHistory || []).map(o => ({ balls: [...o.balls], runs: o.runs }));
+                    bw.currentOverBalls = b.currentOverBalls || [];
+                    return bw;
+                });
+                return snap;
+            });
+        });
+        return data;
+    }
+
+    function clearMatchState() {
+        const key = matchStorageKey();
+        localStorage.removeItem(key);
+        // Clear in-progress flag on fixture
+        if (tournament && currentFixtureIndex >= 0) {
+            const fixture = tournament.fixtures[currentFixtureIndex];
+            delete fixture.inProgress;
+            delete fixture.liveScore;
+            saveTournament();
+        }
+    }
 
     function createPlayer(name) {
         return {
@@ -253,6 +343,9 @@
 
         renderThisOver(inn.thisOver);
         renderLastOver(inn);
+
+        // Auto-save match state
+        saveMatchState();
     }
 
     function formatOvers(balls) {
@@ -660,6 +753,12 @@
                 team1Runs = second.totalRuns; team1Balls = second.totalBalls;
             }
             fixture.matchData = { team1Runs, team1Balls, team2Runs, team2Balls };
+            // Store score lines for display on fixture cards
+            fixture.scoreSummary = match.innings.map(inn =>
+                inn.battingTeam + ": " + inn.totalRuns + "/" + inn.totalWickets + " (" + formatOvers(inn.totalBalls) + " ov)"
+            ).join(" | ");
+            delete fixture.inProgress;
+            delete fixture.liveScore;
             saveTournament();
             $("back-to-tournament-btn").classList.remove("hidden");
             $("team1-name").readOnly = false;
@@ -670,6 +769,7 @@
             $("back-to-tournament-btn").classList.add("hidden");
         }
 
+        clearMatchState();
         showScreen("result-screen");
     }
 
@@ -953,6 +1053,7 @@
 
     // ── New Match ──────────────────────────────────────────
     $("new-match-btn").addEventListener("click", () => {
+        localStorage.removeItem("cricket_match_quick");
         match = null;
         showScreen("home-screen");
     });
@@ -961,6 +1062,18 @@
     $("quick-match-btn").addEventListener("click", () => {
         tournament = null;
         currentFixtureIndex = -1;
+        // Check for saved quick match
+        const saved = loadMatchState("cricket_match_quick");
+        if (saved && saved.match && !saved.match.innings[saved.match.currentInnings].isComplete) {
+            if (confirm("Resume previous match?")) {
+                match = saved.match;
+                showScreen("scoring-screen");
+                updateDisplay();
+                return;
+            } else {
+                localStorage.removeItem("cricket_match_quick");
+            }
+        }
         showScreen("setup-screen");
     });
 
@@ -1222,10 +1335,21 @@
             }
             rounds[r].forEach(({ fixture, index }) => {
                 const card = document.createElement("div");
-                card.className = "fixture-card" + (fixture.played ? " fixture-completed" : "");
+                const isInProgress = fixture.inProgress && !fixture.played;
+                card.className = "fixture-card" + (fixture.played ? " fixture-completed" : "") + (isInProgress ? " fixture-in-progress" : "");
                 let inner = `<div class="fixture-teams"><span class="fixture-team ${fixture.winner === fixture.team1 ? "fixture-winner" : ""}">${fixture.team1}</span><span class="fixture-vs">vs</span><span class="fixture-team ${fixture.winner === fixture.team2 ? "fixture-winner" : ""}">${fixture.team2}</span></div>`;
                 if (fixture.played) {
+                    // Show score summary if available
+                    if (fixture.scoreSummary) {
+                        inner += `<div class="fixture-score-summary">${fixture.scoreSummary}</div>`;
+                    }
                     inner += `<div class="fixture-result">${fixture.result}</div>`;
+                } else if (isInProgress) {
+                    // Show live score and continue button
+                    if (fixture.liveScore) {
+                        inner += `<div class="fixture-live-score">${fixture.liveScore}</div>`;
+                    }
+                    inner += `<button class="btn btn-accent btn-small fixture-continue-btn" data-fixture="${index}">Continue</button>`;
                 } else {
                     inner += `<button class="btn btn-primary btn-small fixture-play-btn" data-fixture="${index}">Play</button>`;
                 }
@@ -1278,6 +1402,13 @@
             btn.addEventListener("click", () => {
                 const fIdx = parseInt(btn.dataset.fixture);
                 startTournamentMatch(fIdx);
+            });
+        });
+        // Attach continue buttons
+        list.querySelectorAll(".fixture-continue-btn").forEach(btn => {
+            btn.addEventListener("click", () => {
+                const fIdx = parseInt(btn.dataset.fixture);
+                resumeTournamentMatch(fIdx);
             });
         });
     }
@@ -1344,6 +1475,20 @@
     }
 
     // ── Start Tournament Match ──────────────────────────────
+    function resumeTournamentMatch(fixtureIndex) {
+        currentFixtureIndex = fixtureIndex;
+        const key = "cricket_match_" + tournament.name + "_" + fixtureIndex;
+        const saved = loadMatchState(key);
+        if (!saved) {
+            // Fallback to starting fresh if no saved state
+            startTournamentMatch(fixtureIndex);
+            return;
+        }
+        match = saved.match;
+        showScreen("scoring-screen");
+        updateDisplay();
+    }
+
     function startTournamentMatch(fixtureIndex) {
         currentFixtureIndex = fixtureIndex;
         const fixture = tournament.fixtures[fixtureIndex];
@@ -1456,6 +1601,8 @@
     });
 
     $("scoring-back-to-tournament-btn").addEventListener("click", () => {
+        // Save match state so it can be resumed
+        saveMatchState();
         showTournamentDashboard();
     });
 
