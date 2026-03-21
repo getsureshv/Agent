@@ -727,6 +727,13 @@ body {
     padding: 8px 0;
 }
 
+.scorecard-dnb {
+    color: #78909c;
+    font-size: 12px;
+    padding: 6px 0 2px;
+    font-style: italic;
+}
+
 .scorecard-extras {
     color: #ffab91;
     font-size: 13px;

@@ -827,15 +827,21 @@
         match.innings.forEach((inn, idx) => {
             html += `<div class="scorecard-team-header">${inn.battingTeam} - ${inn.totalRuns}/${inn.totalWickets} (${formatOvers(inn.totalBalls)} ov)</div>`;
 
-            // Batting
+            // Batting - batsmen who batted
             html += `<table class="scorecard-table"><tr><th>Batsman</th><th class="num">R</th><th class="num">B</th><th class="num">4s</th><th class="num">6s</th><th class="num">SR</th></tr>`;
+            const dnbList = [];
             inn.batsmen.forEach((b, bIdx) => {
                 if (b.balls > 0 || b.isOut) {
                     const dismissal = b.isOut ? b.dismissal : "not out";
                     html += `<tr class="scorecard-clickable" data-type="batsman" data-innings="${idx}" data-index="${bIdx}"><td class="player-name">${b.name}<br><span class="dismissal">${dismissal}</span></td><td class="num">${b.runs}</td><td class="num">${b.balls}</td><td class="num">${b.fours}</td><td class="num">${b.sixes}</td><td class="num">${b.strikeRate()}</td></tr>`;
+                } else {
+                    dnbList.push(b.name);
                 }
             });
             html += `</table>`;
+            if (dnbList.length > 0) {
+                html += `<div class="scorecard-dnb">Did not bat: ${dnbList.join(", ")}</div>`;
+            }
 
             const wd = inn.extras.wides || 0;
             const nb = inn.extras.noBalls || 0;
