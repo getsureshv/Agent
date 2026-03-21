@@ -1176,6 +1176,7 @@
         $("tournament-dashboard-title").textContent = tournament.name;
         renderFixtures();
         renderPointsTable();
+        renderDashboardTeams();
         showScreen("tournament-dashboard-screen");
     }
 
@@ -1451,5 +1452,258 @@
     $("back-to-home-from-dashboard-btn").addEventListener("click", () => {
         loadSavedTournaments();
         showScreen("home-screen");
+    });
+
+    // ── Dashboard Teams Tab ─────────────────────────────────
+    function renderDashboardTeams() {
+        const list = $("dashboard-teams-list");
+        if (!list) return;
+        list.innerHTML = "";
+        if (!tournament) return;
+        tournament.teams.forEach((team, i) => {
+            const card = document.createElement("div");
+            card.className = "dashboard-team-card";
+            const header = document.createElement("div");
+            header.className = "dashboard-team-header";
+            const nameEl = document.createElement("strong");
+            nameEl.textContent = team.name;
+            header.appendChild(nameEl);
+            const editBtn = document.createElement("button");
+            editBtn.className = "btn btn-secondary btn-small";
+            editBtn.textContent = "Edit Squad";
+            editBtn.addEventListener("click", () => openRosterEditor(i));
+            header.appendChild(editBtn);
+            card.appendChild(header);
+
+            const players = document.createElement("div");
+            players.className = "dashboard-team-players";
+            team.players.forEach(p => {
+                const chip = document.createElement("span");
+                chip.className = "dashboard-player-chip";
+                chip.textContent = p;
+                players.appendChild(chip);
+            });
+            card.appendChild(players);
+            list.appendChild(card);
+        });
+    }
+
+    // ── Roster Editor Modal ─────────────────────────────────
+    let rosterEditingTeamIndex = -1;
+    let rosterEditingPlayers = [];
+
+    function openRosterEditor(teamIndex) {
+        rosterEditingTeamIndex = teamIndex;
+        const team = tournament.teams[teamIndex];
+        rosterEditingPlayers = [...team.players];
+        $("roster-editor-title").textContent = team.name + " - Squad";
+        renderRosterEditorList();
+        showModal("roster-editor-modal");
+    }
+
+    function renderRosterEditorList() {
+        const container = $("roster-editor-players");
+        container.innerHTML = "";
+        rosterEditingPlayers.forEach((name, i) => {
+            const row = document.createElement("div");
+            row.className = "roster-player-row";
+            const num = document.createElement("span");
+            num.className = "roster-num";
+            num.textContent = (i + 1) + ".";
+            row.appendChild(num);
+            const inp = document.createElement("input");
+            inp.type = "text";
+            inp.value = name;
+            inp.addEventListener("input", (e) => {
+                rosterEditingPlayers[i] = e.target.value;
+            });
+            row.appendChild(inp);
+            const delBtn = document.createElement("button");
+            delBtn.className = "btn-roster-delete";
+            delBtn.textContent = "\u00d7";
+            delBtn.title = "Remove player";
+            delBtn.addEventListener("click", () => {
+                rosterEditingPlayers.splice(i, 1);
+                renderRosterEditorList();
+            });
+            row.appendChild(delBtn);
+            container.appendChild(row);
+        });
+    }
+
+    $("roster-add-btn").addEventListener("click", addRosterPlayer);
+    $("roster-add-input").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") addRosterPlayer();
+    });
+
+    function addRosterPlayer() {
+        const inp = $("roster-add-input");
+        const name = inp.value.trim();
+        if (!name) return;
+        rosterEditingPlayers.push(name);
+        inp.value = "";
+        renderRosterEditorList();
+    }
+
+    $("save-roster-btn").addEventListener("click", () => {
+        if (rosterEditingTeamIndex < 0) return;
+        // Clean up empty names
+        const cleaned = rosterEditingPlayers.map((n, i) => n.trim() || `Player ${i + 1}`);
+        tournament.teams[rosterEditingTeamIndex].players = cleaned;
+        saveTournament();
+        hideModal("roster-editor-modal");
+        renderDashboardTeams();
+    });
+
+    $("close-roster-editor").addEventListener("click", () => hideModal("roster-editor-modal"));
+
+    // ── Cricket Rules Chat ──────────────────────────────────
+    const cricketRules = {
+        basics: {
+            title: "Basic Rules of Cricket",
+            content: `<h3>Basic Rules</h3>
+<p>Cricket is played between two teams of 11 players each. The game is divided into innings.</p>
+<ul>
+<li><strong>Batting team</strong> tries to score as many runs as possible</li>
+<li><strong>Bowling team</strong> tries to dismiss batsmen and limit runs</li>
+<li>Each innings ends when 10 wickets fall or overs are completed</li>
+<li>Two batsmen are always on the field — the <strong>striker</strong> faces the ball, the <strong>non-striker</strong> is at the other end</li>
+<li>The bowler bowls 6 legal deliveries per over, then a new bowler takes over from the other end</li>
+<li>The team batting second must surpass the first team's total to win</li>
+</ul>`
+        },
+        scoring: {
+            title: "Scoring & Runs",
+            content: `<h3>How Runs Are Scored</h3>
+<ul>
+<li><strong>1, 2, or 3 runs</strong> — batsmen run between the wickets</li>
+<li><strong>Boundary (4 runs)</strong> — ball reaches the boundary rope along the ground</li>
+<li><strong>Six (6 runs)</strong> — ball clears the boundary rope in the air</li>
+<li><strong>Dot ball (0)</strong> — no run scored off the delivery</li>
+<li><strong>Extras</strong> — additional runs from wides, no balls, byes, and leg byes</li>
+</ul>
+<p>The <strong>strike rate</strong> = (runs / balls faced) x 100. The <strong>run rate</strong> = runs scored per over.</p>`
+        },
+        dismissals: {
+            title: "Types of Dismissals",
+            content: `<h3>Ways a Batsman Can Be Out</h3>
+<ul>
+<li><strong>Bowled</strong> — ball hits the stumps directly</li>
+<li><strong>Caught</strong> — fielder catches the ball before it bounces after being hit by the bat</li>
+<li><strong>LBW (Leg Before Wicket)</strong> — ball would have hit the stumps but hit the batsman's pad instead</li>
+<li><strong>Run Out</strong> — fielding side breaks the stumps while the batsman is outside the crease</li>
+<li><strong>Stumped</strong> — wicketkeeper breaks the stumps while batsman is outside the crease (off a legal delivery)</li>
+<li><strong>Hit Wicket</strong> — batsman hits own stumps while playing a shot</li>
+<li><strong>Retired Out</strong> — batsman voluntarily leaves and is marked out</li>
+</ul>`
+        },
+        extras: {
+            title: "Extras Explained",
+            content: `<h3>Types of Extras</h3>
+<ul>
+<li><strong>Wide</strong> — ball too wide for the batsman to play; 1 extra run + any additional runs. Doesn't count as a legal ball.</li>
+<li><strong>No Ball</strong> — bowler overstepping the crease or illegal action; 1 extra run + any runs scored. Free hit in limited overs. Doesn't count as a legal ball.</li>
+<li><strong>Bye</strong> — ball passes the batsman without touching bat or body; runs taken count as extras. Counts as a legal ball.</li>
+<li><strong>Leg Bye</strong> — ball hits the batsman's body (not glove) and runs are taken; counts as extras. Counts as a legal ball.</li>
+</ul>
+<p>Extras are added to the team total but not to the batsman's individual score (except no ball runs scored off the bat).</p>`
+        },
+        fielding: {
+            title: "Fielding Positions",
+            content: `<h3>Common Fielding Positions</h3>
+<ul>
+<li><strong>Slip(s)</strong> — behind the batsman on the off side, for catching edges</li>
+<li><strong>Gully</strong> — wider than slips, square on the off side</li>
+<li><strong>Point</strong> — square on the off side</li>
+<li><strong>Cover</strong> — between point and mid-off</li>
+<li><strong>Mid-off / Mid-on</strong> — straight on either side of the bowler</li>
+<li><strong>Mid-wicket</strong> — between mid-on and square leg</li>
+<li><strong>Square Leg</strong> — square on the leg side</li>
+<li><strong>Fine Leg</strong> — behind square on the leg side</li>
+<li><strong>Third Man</strong> — behind the wicket on the off side</li>
+<li><strong>Long-on / Long-off</strong> — on the boundary, straight</li>
+</ul>`
+        },
+        formats: {
+            title: "Match Formats",
+            content: `<h3>Cricket Match Formats</h3>
+<ul>
+<li><strong>Test Cricket</strong> — 5 days, unlimited overs, 2 innings per side. The original and longest format.</li>
+<li><strong>ODI (One Day International)</strong> — 50 overs per side, 1 innings each. White ball cricket.</li>
+<li><strong>T20 (Twenty20)</strong> — 20 overs per side, 1 innings each. The shortest and most explosive format.</li>
+<li><strong>T10</strong> — 10 overs per side, emerging format.</li>
+</ul>
+<p>This scorer app supports limited-overs formats (1 to 50 overs).</p>`
+        },
+        dls: {
+            title: "DLS & Rain Rules",
+            content: `<h3>Duckworth-Lewis-Stern (DLS)</h3>
+<p>DLS is a mathematical method to set revised targets in rain-affected limited-overs matches.</p>
+<ul>
+<li>It accounts for <strong>overs remaining</strong> and <strong>wickets in hand</strong></li>
+<li>A team with more wickets in hand has more "resources" available</li>
+<li>If play is interrupted, the target is recalculated based on resources available to both teams</li>
+<li>The par score at any point tells you what the chasing team needs to be ahead</li>
+</ul>
+<p>This app doesn't calculate DLS but you can manually adjust targets if needed.</p>`
+        },
+        powerplay: {
+            title: "Powerplay Rules",
+            content: `<h3>Powerplay Restrictions</h3>
+<p>In limited-overs cricket, fielding restrictions apply during powerplay overs:</p>
+<ul>
+<li><strong>ODI:</strong> Mandatory powerplay = first 10 overs (max 2 fielders outside 30-yard circle)</li>
+<li><strong>T20:</strong> Powerplay = first 6 overs (max 2 fielders outside the circle)</li>
+<li>After powerplay, up to 5 fielders can be outside the 30-yard circle</li>
+</ul>
+<p>Powerplays encourage aggressive batting and make the game more exciting for viewers.</p>`
+        },
+        nrr: {
+            title: "Net Run Rate Explained",
+            content: `<h3>Net Run Rate (NRR)</h3>
+<p>NRR is used to rank teams in league/group stages:</p>
+<p><strong>NRR = (Runs scored / Overs faced) - (Runs conceded / Overs bowled)</strong></p>
+<ul>
+<li>A positive NRR means you score faster than you concede</li>
+<li>Higher NRR is better — used as tiebreaker when teams have equal points</li>
+<li>If a team is bowled out, the full quota of overs is used in the calculation</li>
+</ul>
+<p>This app automatically calculates NRR for league tournaments in the Points Table.</p>`
+        },
+        lbw: {
+            title: "LBW Rule Detailed",
+            content: `<h3>LBW (Leg Before Wicket)</h3>
+<p>One of the most complex dismissals. The umpire must consider:</p>
+<ul>
+<li><strong>Where the ball pitched</strong> — must not pitch outside leg stump (for right-handers)</li>
+<li><strong>Where it hit the pad</strong> — must be in line with the stumps, OR the batsman wasn't playing a shot</li>
+<li><strong>Would it have hit the stumps?</strong> — ball must be going on to hit the stumps</li>
+</ul>
+<p>If all three conditions are met, the batsman is given out LBW. In professional cricket, DRS (Decision Review System) with ball-tracking helps verify LBW decisions.</p>`
+        },
+    };
+
+    $("chat-fab").addEventListener("click", () => {
+        $("chat-panel").classList.toggle("hidden");
+    });
+
+    $("chat-panel-close").addEventListener("click", () => {
+        $("chat-panel").classList.add("hidden");
+    });
+
+    document.querySelectorAll(".chat-topic-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const topic = btn.dataset.topic;
+            const rule = cricketRules[topic];
+            if (!rule) return;
+            $("chat-topics").classList.add("hidden");
+            $("chat-answer").classList.remove("hidden");
+            $("chat-answer-content").innerHTML = rule.content;
+        });
+    });
+
+    $("chat-back-btn").addEventListener("click", () => {
+        $("chat-answer").classList.add("hidden");
+        $("chat-topics").classList.remove("hidden");
     });
 })();

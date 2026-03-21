@@ -1222,6 +1222,245 @@ body {
     margin-bottom: 16px;
 }
 
+/* Roster Editor Modal */
+.roster-editor-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 12px;
+    max-height: 45vh;
+    overflow-y: auto;
+}
+
+.roster-player-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px solid #1e3250;
+}
+
+.roster-player-row span.roster-num {
+    color: #78909c;
+    font-size: 12px;
+    min-width: 22px;
+    text-align: right;
+}
+
+.roster-player-row input {
+    flex: 1;
+    padding: 7px 10px;
+    border: 1px solid #2a3a52;
+    border-radius: 8px;
+    background: #132038;
+    color: #e0e0e0;
+    font-size: 14px;
+}
+
+.roster-player-row .btn-roster-delete {
+    background: #4a1c1c;
+    color: #ef9a9a;
+    border: none;
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 16px;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.roster-player-row .btn-roster-delete:hover {
+    background: #5a2020;
+}
+
+.roster-add-row {
+    display: flex;
+    gap: 8px;
+}
+
+.roster-add-row input {
+    flex: 1;
+    padding: 8px 10px;
+    border: 1px solid #2a3a52;
+    border-radius: 8px;
+    background: #132038;
+    color: #e0e0e0;
+    font-size: 14px;
+}
+
+/* Dashboard Teams Tab */
+.dashboard-team-card {
+    background: #132038;
+    border: 1px solid #1e3250;
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 8px;
+}
+
+.dashboard-team-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.dashboard-team-header strong {
+    color: #90caf9;
+    font-size: 16px;
+}
+
+.dashboard-team-players {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.dashboard-player-chip {
+    background: #1e3250;
+    color: #b0bec5;
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 12px;
+}
+
+/* Floating Chat Button */
+.chat-fab {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: #4fc3f7;
+    color: #0a1628;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 16px rgba(79, 195, 247, 0.35);
+    z-index: 300;
+    transition: transform 0.2s, background 0.2s;
+}
+
+.chat-fab:hover {
+    background: #29b6f6;
+    transform: scale(1.08);
+}
+
+.chat-fab:active {
+    transform: scale(0.95);
+}
+
+/* Chat Panel */
+.chat-panel {
+    position: fixed;
+    bottom: 80px;
+    right: 16px;
+    width: 320px;
+    max-width: calc(100vw - 32px);
+    max-height: 70vh;
+    background: #1a2d47;
+    border: 1px solid #2a3a52;
+    border-radius: 16px;
+    z-index: 310;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+}
+
+.chat-panel.hidden {
+    display: none !important;
+}
+
+.chat-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 16px;
+    border-bottom: 1px solid #2a3a52;
+    background: #132038;
+}
+
+.chat-panel-title {
+    color: #4fc3f7;
+    font-weight: 700;
+    font-size: 16px;
+}
+
+.chat-panel-close {
+    background: none;
+    border: none;
+    color: #78909c;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+}
+
+.chat-panel-body {
+    padding: 16px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.chat-welcome {
+    color: #78909c;
+    font-size: 13px;
+    margin-bottom: 12px;
+}
+
+.chat-topics {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.chat-topic-btn {
+    text-align: left;
+    font-size: 14px;
+}
+
+.chat-answer {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.chat-answer.hidden {
+    display: none !important;
+}
+
+.chat-back-btn {
+    align-self: flex-start;
+    font-size: 13px;
+}
+
+#chat-answer-content {
+    color: #e0e0e0;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+#chat-answer-content h3 {
+    color: #4fc3f7;
+    font-size: 15px;
+    margin-bottom: 8px;
+}
+
+#chat-answer-content p {
+    margin-bottom: 10px;
+}
+
+#chat-answer-content ul {
+    padding-left: 18px;
+    margin-bottom: 10px;
+}
+
+#chat-answer-content li {
+    margin-bottom: 4px;
+}
+
 /* Responsive */
 @media (max-width: 360px) {
     .btn-run {

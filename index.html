@@ -81,18 +81,22 @@
             </div>
         </div>
 
-        <!-- Tournament Dashboard (fixtures + points table) -->
+        <!-- Tournament Dashboard (fixtures + points table + teams) -->
         <div id="tournament-dashboard-screen" class="screen">
             <h1 id="tournament-dashboard-title">Tournament</h1>
             <div class="tab-bar">
                 <button class="tab-btn active" data-tab="fixtures">Fixtures</button>
                 <button class="tab-btn" data-tab="points">Points Table</button>
+                <button class="tab-btn" data-tab="teams">Teams</button>
             </div>
             <div id="tab-fixtures" class="tab-content active">
                 <div id="fixtures-list" class="fixtures-list"></div>
             </div>
             <div id="tab-points" class="tab-content">
                 <div id="points-table-container"></div>
+            </div>
+            <div id="tab-teams" class="tab-content">
+                <div id="dashboard-teams-list" class="teams-list"></div>
             </div>
             <button class="btn btn-secondary btn-large" id="back-to-home-from-dashboard-btn" style="margin-top:16px;">Back to Home</button>
         </div>
@@ -358,12 +362,58 @@
             </div>
         </div>
 
+        <!-- Roster Editor Modal (edit players from dashboard) -->
+        <div id="roster-editor-modal" class="modal hidden">
+            <div class="modal-content modal-content-tall">
+                <button class="modal-close" id="close-roster-editor">&times;</button>
+                <h2 id="roster-editor-title">Edit Squad</h2>
+                <div id="roster-editor-players" class="roster-editor-list"></div>
+                <div class="roster-add-row">
+                    <input type="text" id="roster-add-input" placeholder="New player name">
+                    <button class="btn btn-primary" id="roster-add-btn">Add</button>
+                </div>
+                <button class="btn btn-primary btn-large" id="save-roster-btn" style="margin-top:12px;">Save Changes</button>
+            </div>
+        </div>
+
         <!-- Match Result Screen -->
         <div id="result-screen" class="screen">
             <h1 id="result-text"></h1>
             <div id="result-summary"></div>
             <button class="btn btn-primary btn-large" id="new-match-btn">New Match</button>
             <button class="btn btn-accent btn-large hidden" id="back-to-tournament-btn" style="margin-top:8px;">Back to Tournament</button>
+        </div>
+    </div>
+
+    <!-- Floating Chat Button (always visible) -->
+    <button class="chat-fab" id="chat-fab" title="Cricket Rules">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+    </button>
+
+    <!-- Chat Panel -->
+    <div class="chat-panel hidden" id="chat-panel">
+        <div class="chat-panel-header">
+            <span class="chat-panel-title">Cricket Rules</span>
+            <button class="chat-panel-close" id="chat-panel-close">&times;</button>
+        </div>
+        <div class="chat-panel-body" id="chat-panel-body">
+            <div class="chat-topics" id="chat-topics">
+                <p class="chat-welcome">Tap a topic to learn the rules:</p>
+                <button class="btn btn-secondary chat-topic-btn" data-topic="basics">Basic Rules</button>
+                <button class="btn btn-secondary chat-topic-btn" data-topic="scoring">Scoring &amp; Runs</button>
+                <button class="btn btn-secondary chat-topic-btn" data-topic="dismissals">Dismissals (Wickets)</button>
+                <button class="btn btn-secondary chat-topic-btn" data-topic="extras">Extras (Wides, No Balls)</button>
+                <button class="btn btn-secondary chat-topic-btn" data-topic="fielding">Fielding Positions</button>
+                <button class="btn btn-secondary chat-topic-btn" data-topic="formats">Match Formats</button>
+                <button class="btn btn-secondary chat-topic-btn" data-topic="dls">DLS &amp; Rain Rules</button>
+                <button class="btn btn-secondary chat-topic-btn" data-topic="powerplay">Powerplay Rules</button>
+                <button class="btn btn-secondary chat-topic-btn" data-topic="nrr">Net Run Rate (NRR)</button>
+                <button class="btn btn-secondary chat-topic-btn" data-topic="lbw">LBW Explained</button>
+            </div>
+            <div class="chat-answer hidden" id="chat-answer">
+                <button class="btn btn-secondary chat-back-btn" id="chat-back-btn">&larr; All Topics</button>
+                <div id="chat-answer-content"></div>
+            </div>
         </div>
     </div>
 
