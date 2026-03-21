@@ -181,6 +181,12 @@
         }
         document.querySelectorAll(".screen").forEach((s) => s.classList.remove("active"));
         $(id).classList.add("active");
+        // Show/hide tournament nav on scoring screen
+        if (id === "scoring-screen" && tournament && currentFixtureIndex >= 0) {
+            $("scoring-back-to-tournament-btn").classList.remove("hidden");
+        } else {
+            $("scoring-back-to-tournament-btn").classList.add("hidden");
+        }
         // Pre-fill tournament player names
         if (id === "players-screen" && tournament && tournament._pendingTeam1Players) {
             setTimeout(() => {
@@ -1449,6 +1455,10 @@
         showTournamentDashboard();
     });
 
+    $("scoring-back-to-tournament-btn").addEventListener("click", () => {
+        showTournamentDashboard();
+    });
+
     $("back-to-home-from-dashboard-btn").addEventListener("click", () => {
         loadSavedTournaments();
         showScreen("home-screen");
@@ -1557,129 +1567,233 @@
 
     $("close-roster-editor").addEventListener("click", () => hideModal("roster-editor-modal"));
 
-    // ── Cricket Rules Chat ──────────────────────────────────
+    // ── Cricket Rules Chat (ICC Playing Conditions + MCC Laws) ──
     const cricketRules = {
         basics: {
             title: "Basic Rules of Cricket",
-            content: `<h3>Basic Rules</h3>
-<p>Cricket is played between two teams of 11 players each. The game is divided into innings.</p>
+            content: `<h3>Basic Rules (ICC / MCC Laws)</h3>
+<p>Cricket is played between two teams of <strong>11 players</strong> each. Each team takes turns batting and bowling (an "innings").</p>
 <ul>
-<li><strong>Batting team</strong> tries to score as many runs as possible</li>
-<li><strong>Bowling team</strong> tries to dismiss batsmen and limit runs</li>
-<li>Each innings ends when 10 wickets fall or overs are completed</li>
-<li>Two batsmen are always on the field — the <strong>striker</strong> faces the ball, the <strong>non-striker</strong> is at the other end</li>
-<li>The bowler bowls 6 legal deliveries per over, then a new bowler takes over from the other end</li>
-<li>The team batting second must surpass the first team's total to win</li>
-</ul>`
+<li>The <strong>batting team</strong> tries to score as many runs as possible</li>
+<li>The <strong>bowling/fielding team</strong> tries to dismiss batsmen and restrict runs</li>
+<li>An innings ends when <strong>10 wickets fall</strong> (all out) or the allotted overs are completed</li>
+<li>Two batsmen are always at the crease — the <strong>striker</strong> faces the ball, the <strong>non-striker</strong> stands at the bowler's end</li>
+<li>The bowler delivers <strong>6 legal balls per over</strong>, then a different bowler bowls from the other end</li>
+<li>The same bowler <strong>cannot bowl consecutive overs</strong></li>
+<li>The team batting second must <strong>surpass</strong> the first team's total to win</li>
+<li>If the scores are level, the match is a <strong>Tie</strong> (in limited overs, a Super Over decides the winner in knockouts)</li>
+</ul>
+<p><strong>The pitch</strong> is 22 yards (20.12m) long. Stumps are 28 inches tall with two bails on top. The batting crease (popping crease) is 4 feet in front of the stumps.</p>`
         },
         scoring: {
             title: "Scoring & Runs",
-            content: `<h3>How Runs Are Scored</h3>
+            content: `<h3>How Runs Are Scored (ICC Rules)</h3>
 <ul>
-<li><strong>1, 2, or 3 runs</strong> — batsmen run between the wickets</li>
-<li><strong>Boundary (4 runs)</strong> — ball reaches the boundary rope along the ground</li>
-<li><strong>Six (6 runs)</strong> — ball clears the boundary rope in the air</li>
+<li><strong>Running between wickets</strong> — batsmen complete runs by reaching the opposite crease. 1, 2, or 3 runs are common; 4 or 5 all-run is rare but legal</li>
+<li><strong>Boundary four (4)</strong> — ball crosses the boundary rope after bouncing. Umpire signals by waving arm side to side</li>
+<li><strong>Boundary six (6)</strong> — ball clears the boundary rope without bouncing. Umpire signals with both arms raised overhead</li>
 <li><strong>Dot ball (0)</strong> — no run scored off the delivery</li>
-<li><strong>Extras</strong> — additional runs from wides, no balls, byes, and leg byes</li>
+<li><strong>Extras</strong> — wides, no balls, byes, and leg byes are added to the team total</li>
+<li><strong>Overthrows</strong> — if a fielder's throw misses and crosses the boundary, all runs plus 4 are awarded</li>
+<li><strong>Short run</strong> — if a batsman fails to ground the bat behind the crease, the umpire signals short run (taps shoulder) and that run is not counted</li>
+<li><strong>Penalty runs</strong> — 5 penalty runs can be awarded for ball tampering, deliberate distraction, or damaging the pitch</li>
 </ul>
-<p>The <strong>strike rate</strong> = (runs / balls faced) x 100. The <strong>run rate</strong> = runs scored per over.</p>`
+<p><strong>Strike Rate</strong> = (Runs / Balls faced) x 100<br>
+<strong>Run Rate</strong> = Runs scored per over (runs / overs)<br>
+<strong>Required Run Rate</strong> = Runs needed / Overs remaining</p>`
         },
         dismissals: {
-            title: "Types of Dismissals",
-            content: `<h3>Ways a Batsman Can Be Out</h3>
+            title: "All 11 Dismissals",
+            content: `<h3>Ways a Batsman Can Be Out (MCC Laws)</h3>
+<p>There are <strong>11 methods of dismissal</strong> in the Laws of Cricket:</p>
 <ul>
-<li><strong>Bowled</strong> — ball hits the stumps directly</li>
-<li><strong>Caught</strong> — fielder catches the ball before it bounces after being hit by the bat</li>
-<li><strong>LBW (Leg Before Wicket)</strong> — ball would have hit the stumps but hit the batsman's pad instead</li>
-<li><strong>Run Out</strong> — fielding side breaks the stumps while the batsman is outside the crease</li>
-<li><strong>Stumped</strong> — wicketkeeper breaks the stumps while batsman is outside the crease (off a legal delivery)</li>
-<li><strong>Hit Wicket</strong> — batsman hits own stumps while playing a shot</li>
-<li><strong>Retired Out</strong> — batsman voluntarily leaves and is marked out</li>
-</ul>`
+<li><strong>Bowled</strong> — the ball hits the stumps and dislodges the bails, whether or not it touches the bat/pad first</li>
+<li><strong>Caught</strong> — a fielder catches the ball on the full after it touches the bat or glove. The catch must be taken cleanly before the ball bounces</li>
+<li><strong>LBW</strong> — the ball would have hit the stumps but was intercepted by the batsman's body (see LBW topic for full details)</li>
+<li><strong>Run Out</strong> — the stumps are broken by a fielder while the batsman is outside the crease during a run. Either batsman can be run out</li>
+<li><strong>Stumped</strong> — the wicketkeeper breaks the stumps while the batsman is outside the crease, not attempting a run (usually off a spin delivery)</li>
+<li><strong>Hit Wicket</strong> — the batsman dislodges the bails with their body, bat, or equipment while playing a shot or setting off for a run</li>
+<li><strong>Obstructing the Field</strong> — a batsman deliberately blocks or distracts a fielder from making a play on the ball</li>
+<li><strong>Hit the Ball Twice</strong> — the batsman intentionally hits the ball a second time (except to protect the stumps). Extremely rare</li>
+<li><strong>Timed Out</strong> — the new batsman takes more than <strong>3 minutes</strong> to be ready to face after a wicket falls</li>
+<li><strong>Retired Out</strong> — a batsman retires voluntarily and does not return. "Retired hurt" can return; "retired out" cannot</li>
+<li><strong>Mankading (Run Out at non-striker's end)</strong> — the bowler removes the bails if the non-striker leaves the crease before the ball is delivered. Legal under Law 41.16</li>
+</ul>
+<p><em>On a <strong>Free Hit</strong>, the batsman can only be dismissed by run out, hitting the ball twice, or obstructing the field.</em></p>`
         },
         extras: {
-            title: "Extras Explained",
+            title: "Extras (ICC Rules)",
             content: `<h3>Types of Extras</h3>
 <ul>
-<li><strong>Wide</strong> — ball too wide for the batsman to play; 1 extra run + any additional runs. Doesn't count as a legal ball.</li>
-<li><strong>No Ball</strong> — bowler overstepping the crease or illegal action; 1 extra run + any runs scored. Free hit in limited overs. Doesn't count as a legal ball.</li>
-<li><strong>Bye</strong> — ball passes the batsman without touching bat or body; runs taken count as extras. Counts as a legal ball.</li>
-<li><strong>Leg Bye</strong> — ball hits the batsman's body (not glove) and runs are taken; counts as extras. Counts as a legal ball.</li>
+<li><strong>Wide Ball</strong> — umpire judges the ball passed too far from the batsman to play a normal shot. <strong>1 run</strong> added automatically + any runs completed. <strong>Does not count as a legal delivery</strong> — the bowler must re-bowl. In T20s the wide line is stricter than in ODIs/Tests. Umpire signal: both arms extended horizontally</li>
+<li><strong>No Ball</strong> — bowler oversteps the front crease (most common), or bowls above waist height without bouncing, or throws rather than bowls. <strong>1 run</strong> added + any runs scored off the bat. <strong>Does not count as a legal delivery</strong>. In limited overs, the next ball is a <strong>Free Hit</strong>. Umpire signal: one arm extended horizontally</li>
+<li><strong>Bye</strong> — the ball passes the batsman without touching bat or body, and batsmen complete runs. Counted as team extras, not individual runs. <strong>Counts as a legal delivery</strong>. Umpire signal: one arm raised above head</li>
+<li><strong>Leg Bye</strong> — the ball hits the batsman's body (not glove/bat) and runs are taken. Only awarded if the batsman attempted a shot or tried to avoid the ball. <strong>Counts as a legal delivery</strong>. Umpire signal: touching knee with hand</li>
 </ul>
-<p>Extras are added to the team total but not to the batsman's individual score (except no ball runs scored off the bat).</p>`
+<p><strong>No ball runs scored off the bat</strong> are credited to the batsman's individual score. All other extras count only toward the team total.</p>
+<p><strong>Bouncer rules:</strong> In T20Is, bowlers are limited to <strong>1 bouncer per over</strong>. In ODIs, <strong>2 bouncers per over</strong>. In Tests, there is no limit.</p>`
+        },
+        freehit: {
+            title: "Free Hit Rules",
+            content: `<h3>Free Hit (ICC Playing Conditions)</h3>
+<p>A Free Hit is awarded after <strong>every no ball</strong> in limited-overs cricket (ODIs and T20s). It does <strong>not apply in Test cricket</strong>.</p>
+<ul>
+<li>On a Free Hit delivery, the batsman <strong>cannot be dismissed</strong> except by: <strong>run out</strong>, <strong>hitting the ball twice</strong>, or <strong>obstructing the field</strong></li>
+<li>The batsman cannot be bowled, caught, stumped, LBW, or hit wicket on a Free Hit</li>
+<li>The umpire signals a Free Hit by <strong>circling one arm above the head</strong></li>
+<li>Fielders <strong>cannot change positions</strong> from the previous delivery unless the batsmen crossed (striker changed)</li>
+<li>If the Free Hit delivery is also a no ball or wide, the <strong>Free Hit carries over</strong> to the next ball</li>
+<li>Originally (2007) only front-foot no balls gave a Free Hit. Since <strong>2015 ICC update</strong>, all no balls result in a Free Hit</li>
+</ul>`
         },
         fielding: {
             title: "Fielding Positions",
-            content: `<h3>Common Fielding Positions</h3>
+            content: `<h3>Fielding Positions (ICC)</h3>
+<p>The captain places 11 fielders (including bowler and wicketkeeper). Key positions:</p>
 <ul>
-<li><strong>Slip(s)</strong> — behind the batsman on the off side, for catching edges</li>
-<li><strong>Gully</strong> — wider than slips, square on the off side</li>
-<li><strong>Point</strong> — square on the off side</li>
-<li><strong>Cover</strong> — between point and mid-off</li>
-<li><strong>Mid-off / Mid-on</strong> — straight on either side of the bowler</li>
-<li><strong>Mid-wicket</strong> — between mid-on and square leg</li>
-<li><strong>Square Leg</strong> — square on the leg side</li>
-<li><strong>Fine Leg</strong> — behind square on the leg side</li>
-<li><strong>Third Man</strong> — behind the wicket on the off side</li>
-<li><strong>Long-on / Long-off</strong> — on the boundary, straight</li>
+<li><strong>Wicketkeeper</strong> — behind the stumps (only fielder allowed gloves)</li>
+<li><strong>Slip(s) / Gully</strong> — close catchers on the off side, behind the batsman</li>
+<li><strong>Point / Cover</strong> — off side, between square and mid-off</li>
+<li><strong>Mid-off / Mid-on</strong> — straight, either side of the bowler</li>
+<li><strong>Mid-wicket / Square Leg</strong> — on the leg side</li>
+<li><strong>Fine Leg / Third Man</strong> — behind the wicket on leg/off side</li>
+<li><strong>Long-on / Long-off / Deep mid-wicket</strong> — boundary fielders</li>
+<li><strong>Short Leg / Silly Point</strong> — very close catching positions</li>
+</ul>
+<p><strong>ICC fielding restrictions:</strong></p>
+<ul>
+<li>No more than <strong>2 fielders</strong> behind square on the leg side at any time</li>
+<li>A maximum of <strong>9 fielders</strong> on the field (excluding bowler and keeper) can be positioned anywhere within the restrictions</li>
 </ul>`
         },
         formats: {
-            title: "Match Formats",
-            content: `<h3>Cricket Match Formats</h3>
+            title: "Match Formats (ICC)",
+            content: `<h3>ICC Match Formats</h3>
 <ul>
-<li><strong>Test Cricket</strong> — 5 days, unlimited overs, 2 innings per side. The original and longest format.</li>
-<li><strong>ODI (One Day International)</strong> — 50 overs per side, 1 innings each. White ball cricket.</li>
-<li><strong>T20 (Twenty20)</strong> — 20 overs per side, 1 innings each. The shortest and most explosive format.</li>
-<li><strong>T10</strong> — 10 overs per side, emerging format.</li>
+<li><strong>Test Cricket</strong> — up to 5 days, 2 innings per side, no over limit. No powerplays. Result: win, draw (time runs out), or tie (rare). The <strong>follow-on</strong> can be enforced if a team trails by 200+ runs (in 5-day Tests)</li>
+<li><strong>ODI (50 overs)</strong> — each team bats once, max 50 overs. Each bowler limited to <strong>10 overs</strong>. Three powerplay phases. White ball, coloured clothing</li>
+<li><strong>T20I (20 overs)</strong> — each team bats once, max 20 overs. Each bowler limited to <strong>4 overs</strong>. One powerplay (overs 1-6). Most explosive format</li>
+<li><strong>T10 (10 overs)</strong> — each team bats once, max 10 overs. Each bowler limited to <strong>2 overs</strong>. Emerging format</li>
 </ul>
-<p>This scorer app supports limited-overs formats (1 to 50 overs).</p>`
+<p><strong>Bowling limits per bowler:</strong> Test = unlimited | ODI = 10 overs | T20 = 4 overs | T10 = 2 overs</p>
+<p><strong>Ball per innings:</strong> Test = unlimited | ODI = 300 balls | T20 = 120 balls | T10 = 60 balls</p>`
         },
         dls: {
             title: "DLS & Rain Rules",
-            content: `<h3>Duckworth-Lewis-Stern (DLS)</h3>
-<p>DLS is a mathematical method to set revised targets in rain-affected limited-overs matches.</p>
+            content: `<h3>Duckworth-Lewis-Stern Method (ICC)</h3>
+<p>The DLS method is the ICC standard for setting revised targets in <strong>rain-affected limited-overs matches</strong>.</p>
 <ul>
-<li>It accounts for <strong>overs remaining</strong> and <strong>wickets in hand</strong></li>
-<li>A team with more wickets in hand has more "resources" available</li>
-<li>If play is interrupted, the target is recalculated based on resources available to both teams</li>
-<li>The par score at any point tells you what the chasing team needs to be ahead</li>
+<li>It works on the principle that a team has two <strong>"resources"</strong> to score runs: <strong>overs remaining</strong> and <strong>wickets in hand</strong></li>
+<li>A team at 50/0 in 10 overs has more resources than a team at 50/5 in 10 overs</li>
+<li>When play is interrupted, DLS calculates the <strong>percentage of resources lost</strong> by each team and adjusts the target accordingly</li>
+<li>The <strong>par score</strong> at any point tells you what the chasing team needs to be level</li>
+<li>If the team batting second is ahead of the par score when play is abandoned, they win</li>
+<li>A minimum of <strong>20 overs per side in ODIs</strong> and <strong>5 overs per side in T20s</strong> must be possible for a result</li>
 </ul>
-<p>This app doesn't calculate DLS but you can manually adjust targets if needed.</p>`
+<p>For example: if Team A scores 250 in 50 overs, and rain reduces Team B's innings to 40 overs, DLS might set a revised target of 210 (not pro-rata 200).</p>`
         },
         powerplay: {
-            title: "Powerplay Rules",
-            content: `<h3>Powerplay Restrictions</h3>
-<p>In limited-overs cricket, fielding restrictions apply during powerplay overs:</p>
+            title: "Powerplay Rules (ICC)",
+            content: `<h3>ICC Powerplay & Fielding Restrictions</h3>
+<p><strong>T20 International:</strong></p>
 <ul>
-<li><strong>ODI:</strong> Mandatory powerplay = first 10 overs (max 2 fielders outside 30-yard circle)</li>
-<li><strong>T20:</strong> Powerplay = first 6 overs (max 2 fielders outside the circle)</li>
-<li>After powerplay, up to 5 fielders can be outside the 30-yard circle</li>
+<li><strong>Overs 1-6 (Powerplay):</strong> Max <strong>2 fielders</strong> outside the 30-yard circle</li>
+<li><strong>Overs 7-20:</strong> Max <strong>5 fielders</strong> outside the 30-yard circle</li>
+<li>In shortened T20 matches (rain), powerplay overs are now <strong>rounded to the nearest ball</strong> (2025 ICC update)</li>
 </ul>
-<p>Powerplays encourage aggressive batting and make the game more exciting for viewers.</p>`
+<p><strong>ODI (50 overs):</strong></p>
+<ul>
+<li><strong>Overs 1-10 (Powerplay 1):</strong> Max <strong>2 fielders</strong> outside the circle</li>
+<li><strong>Overs 11-40 (Powerplay 2):</strong> Max <strong>4 fielders</strong> outside the circle</li>
+<li><strong>Overs 41-50 (Powerplay 3):</strong> Max <strong>5 fielders</strong> outside the circle</li>
+</ul>
+<p><strong>Over-rate penalty (T20I):</strong> If the fielding team fails to bowl 20 overs within <strong>85 minutes</strong>, they must bring <strong>one extra fielder inside</strong> the circle for each over not completed in time.</p>
+<p><strong>Test Cricket:</strong> No powerplays or fielding circle restrictions.</p>`
+        },
+        superover: {
+            title: "Super Over Rules",
+            content: `<h3>Super Over (ICC Playing Conditions)</h3>
+<p>Used to decide the winner when a limited-overs match (ODI/T20) ends in a <strong>Tie</strong>:</p>
+<ul>
+<li>Each team faces <strong>1 over (6 balls)</strong></li>
+<li>The team batting first in the main match bats first in the Super Over</li>
+<li>Each team nominates <strong>3 players</strong> — 2 batsmen and 1 bowler</li>
+<li>The team scoring the <strong>most runs</strong> in their Super Over wins</li>
+<li>If the Super Over is also tied, <strong>another Super Over</strong> is played (continuous Super Overs, per ICC 2019 update)</li>
+<li>The old "boundary countback" rule was <strong>scrapped in 2019</strong> after the controversial 2019 World Cup Final</li>
+</ul>
+<p>The Super Over only applies in <strong>knockout/tournament matches</strong>. League-stage ties may stand as ties depending on tournament rules.</p>`
+        },
+        drs: {
+            title: "DRS (Decision Review)",
+            content: `<h3>Decision Review System (ICC)</h3>
+<p>DRS allows teams to challenge on-field umpire decisions using technology. First used in 2008 (India vs Sri Lanka).</p>
+<ul>
+<li>Each team gets <strong>1 unsuccessful review per innings</strong> (T20/ODI). Tests may allow 2-3</li>
+<li>A successful review (decision overturned) is <strong>retained</strong> — you don't lose it</li>
+<li>Reviews must be requested within <strong>15 seconds</strong> of the delivery. Captain signals with a "T" gesture</li>
+<li>Only <strong>"Out" or "Not Out"</strong> decisions can be reviewed (not wides/no balls, except in some leagues like IPL)</li>
+</ul>
+<p><strong>Technology used:</strong></p>
+<ul>
+<li><strong>Hawk-Eye</strong> — ball-tracking that predicts trajectory for LBW decisions</li>
+<li><strong>UltraEdge / Snickometer</strong> — detects if ball hit bat or pad first via sound waves</li>
+<li><strong>Hot Spot</strong> — infrared imaging showing contact points</li>
+</ul>
+<p><strong>Umpire's Call:</strong> If ball-tracking shows the ball is clipping the stumps (within the margin of error), the original on-field decision stands. This preserves the umpire's authority.</p>`
         },
         nrr: {
-            title: "Net Run Rate Explained",
-            content: `<h3>Net Run Rate (NRR)</h3>
-<p>NRR is used to rank teams in league/group stages:</p>
+            title: "Net Run Rate (NRR)",
+            content: `<h3>Net Run Rate (ICC Tournament Rules)</h3>
 <p><strong>NRR = (Runs scored / Overs faced) - (Runs conceded / Overs bowled)</strong></p>
 <ul>
-<li>A positive NRR means you score faster than you concede</li>
-<li>Higher NRR is better — used as tiebreaker when teams have equal points</li>
-<li>If a team is bowled out, the full quota of overs is used in the calculation</li>
+<li>A <strong>positive NRR</strong> means you score faster than you concede — better</li>
+<li>Used as the <strong>primary tiebreaker</strong> when teams finish on equal points in league/group stages</li>
+<li>If a team is <strong>bowled out</strong>, the full quota of overs is used (not the actual overs taken). This penalizes teams that collapse early</li>
+<li>Winning by a large margin boosts your NRR significantly</li>
 </ul>
+<p><strong>Example:</strong> Team A scores 180/4 in 20 overs (rate: 9.00) and bowls out Team B for 120 in 18 overs (but counted as 20 overs, rate: 6.00). NRR for that match = 9.00 - 6.00 = +3.00</p>
 <p>This app automatically calculates NRR for league tournaments in the Points Table.</p>`
         },
         lbw: {
-            title: "LBW Rule Detailed",
-            content: `<h3>LBW (Leg Before Wicket)</h3>
-<p>One of the most complex dismissals. The umpire must consider:</p>
+            title: "LBW Explained (ICC)",
+            content: `<h3>LBW — Leg Before Wicket</h3>
+<p>First introduced in the Laws of Cricket in <strong>1774</strong>. One of the most complex and debated dismissals.</p>
+<p><strong>Three conditions must ALL be met:</strong></p>
 <ul>
-<li><strong>Where the ball pitched</strong> — must not pitch outside leg stump (for right-handers)</li>
-<li><strong>Where it hit the pad</strong> — must be in line with the stumps, OR the batsman wasn't playing a shot</li>
-<li><strong>Would it have hit the stumps?</strong> — ball must be going on to hit the stumps</li>
+<li><strong>1. Where did the ball pitch?</strong> — Must NOT pitch outside leg stump. Can pitch outside off stump or in line</li>
+<li><strong>2. Where did it hit the pad?</strong> — Must be <strong>in line</strong> with the stumps. Exception: if the batsman offers <strong>no shot</strong>, it can hit outside off stump and still be out</li>
+<li><strong>3. Would it have hit the stumps?</strong> — Ball-tracking (Hawk-Eye) must show the ball going on to hit the stumps</li>
 </ul>
-<p>If all three conditions are met, the batsman is given out LBW. In professional cricket, DRS (Decision Review System) with ball-tracking helps verify LBW decisions.</p>`
+<p><strong>NOT out LBW if:</strong></p>
+<ul>
+<li>Ball pitched outside leg stump</li>
+<li>Ball hit the pad outside off stump AND the batsman was playing a shot</li>
+<li>Ball hit the bat first before hitting the pad</li>
+<li>Ball was going over or missing the stumps</li>
+</ul>
+<p><strong>DRS and Umpire's Call:</strong> If fewer than 50% of the ball is hitting the stumps per Hawk-Eye, it's "Umpire's Call" — the on-field decision stands regardless of the review.</p>`
+        },
+        umpire: {
+            title: "Umpire Signals",
+            content: `<h3>Umpire Signals (MCC Laws)</h3>
+<ul>
+<li><strong>Out</strong> — raised index finger</li>
+<li><strong>Not Out</strong> — arms waved across chest</li>
+<li><strong>No Ball</strong> — one arm extended horizontally to the side</li>
+<li><strong>Wide</strong> — both arms extended horizontally</li>
+<li><strong>Boundary Four</strong> — arm waved back and forth in front of chest</li>
+<li><strong>Boundary Six</strong> — both arms raised straight above head</li>
+<li><strong>Bye</strong> — one open palm raised above the head</li>
+<li><strong>Leg Bye</strong> — touches knee with hand</li>
+<li><strong>Free Hit</strong> — circles one arm above the head</li>
+<li><strong>Dead Ball</strong> — crosses both arms in front of waist</li>
+<li><strong>TV Umpire Review</strong> — makes a rectangle/box shape with hands</li>
+<li><strong>Penalty Runs</strong> — one hand placed on opposite shoulder</li>
+<li><strong>Short Run</strong> — taps nearest shoulder with fingers</li>
+<li><strong>New Ball</strong> — holds ball above head</li>
+<li><strong>Revoke Last Signal</strong> — touches both shoulders with hands</li>
+</ul>`
         },
     };
 
