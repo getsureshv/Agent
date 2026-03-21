@@ -3,6 +3,8 @@
 
     // ── State ──────────────────────────────────────────────
     let match = null;
+    let tournament = null; // { name, format, overs, playersPerTeam, teams: [{name, players:[]}], fixtures: [{team1, team2, result, winner, played}], pointsTable: {} }
+    let currentFixtureIndex = -1;
 
     function createPlayer(name) {
         return {
@@ -170,8 +172,28 @@
 
     // ── Screen Management ──────────────────────────────────
     function showScreen(id) {
+        // Unlock fields when leaving setup in non-tournament mode
+        if (id !== "setup-screen" && !tournament) {
+            $("team1-name").readOnly = false;
+            $("team2-name").readOnly = false;
+            $("overs-limit").readOnly = false;
+            $("players-per-team").readOnly = false;
+        }
         document.querySelectorAll(".screen").forEach((s) => s.classList.remove("active"));
         $(id).classList.add("active");
+        // Pre-fill tournament player names
+        if (id === "players-screen" && tournament && tournament._pendingTeam1Players) {
+            setTimeout(() => {
+                const t1Inputs = $("team1-player-inputs").querySelectorAll("input");
+                const t2Inputs = $("team2-player-inputs").querySelectorAll("input");
+                if (tournament._pendingTeam1Players) {
+                    tournament._pendingTeam1Players.forEach((name, i) => { if (t1Inputs[i]) t1Inputs[i].value = name; });
+                }
+                if (tournament._pendingTeam2Players) {
+                    tournament._pendingTeam2Players.forEach((name, i) => { if (t2Inputs[i]) t2Inputs[i].value = name; });
+                }
+            }, 0);
+        }
     }
 
     // ── Display Updates ────────────────────────────────────
@@ -605,6 +627,39 @@
 
         $("result-text").textContent = resultText;
         $("result-summary").innerHTML = buildResultSummary();
+
+        // Record result in tournament
+        if (tournament && currentFixtureIndex >= 0) {
+            const fixture = tournament.fixtures[currentFixtureIndex];
+            fixture.played = true;
+            fixture.result = resultText;
+            if (second.totalRuns > first.totalRuns) {
+                fixture.winner = second.battingTeam;
+            } else if (first.totalRuns > second.totalRuns) {
+                fixture.winner = first.battingTeam;
+            } else {
+                fixture.winner = null;
+            }
+            const inn1BattingTeam = first.battingTeam;
+            let team1Runs, team1Balls, team2Runs, team2Balls;
+            if (inn1BattingTeam === fixture.team1) {
+                team1Runs = first.totalRuns; team1Balls = first.totalBalls;
+                team2Runs = second.totalRuns; team2Balls = second.totalBalls;
+            } else {
+                team2Runs = first.totalRuns; team2Balls = first.totalBalls;
+                team1Runs = second.totalRuns; team1Balls = second.totalBalls;
+            }
+            fixture.matchData = { team1Runs, team1Balls, team2Runs, team2Balls };
+            saveTournament();
+            $("back-to-tournament-btn").classList.remove("hidden");
+            $("team1-name").readOnly = false;
+            $("team2-name").readOnly = false;
+            $("overs-limit").readOnly = false;
+            $("players-per-team").readOnly = false;
+        } else {
+            $("back-to-tournament-btn").classList.add("hidden");
+        }
+
         showScreen("result-screen");
     }
 
@@ -889,6 +944,423 @@
     // ── New Match ──────────────────────────────────────────
     $("new-match-btn").addEventListener("click", () => {
         match = null;
+        showScreen("home-screen");
+    });
+
+    // ── Home Screen ─────────────────────────────────────────
+    $("quick-match-btn").addEventListener("click", () => {
+        tournament = null;
+        currentFixtureIndex = -1;
         showScreen("setup-screen");
+    });
+
+    $("new-tournament-btn").addEventListener("click", () => {
+        showScreen("tournament-setup-screen");
+    });
+
+    $("back-to-home-btn").addEventListener("click", () => showScreen("home-screen"));
+
+    // Load saved tournaments on startup
+    function loadSavedTournaments() {
+        const saved = localStorage.getItem("cricket_tournaments");
+        const section = $("saved-tournaments-section");
+        const list = $("saved-tournaments-list");
+        if (!saved) { section.style.display = "none"; return; }
+        const tournaments = JSON.parse(saved);
+        if (tournaments.length === 0) { section.style.display = "none"; return; }
+        section.style.display = "";
+        list.innerHTML = "";
+        tournaments.forEach((t, i) => {
+            const card = document.createElement("div");
+            card.className = "tournament-card";
+            const played = t.fixtures.filter(f => f.played).length;
+            card.innerHTML = `<div class="tournament-card-info"><strong>${t.name}</strong><span class="tournament-card-meta">${t.format === "league" ? "League" : "Knockout"} &middot; ${t.teams.length} teams &middot; ${played}/${t.fixtures.length} matches</span></div>`;
+            const actions = document.createElement("div");
+            actions.className = "tournament-card-actions";
+            const resumeBtn = document.createElement("button");
+            resumeBtn.className = "btn btn-primary";
+            resumeBtn.textContent = "Resume";
+            resumeBtn.addEventListener("click", () => {
+                tournament = t;
+                currentFixtureIndex = -1;
+                showTournamentDashboard();
+            });
+            actions.appendChild(resumeBtn);
+            const deleteBtn = document.createElement("button");
+            deleteBtn.className = "btn btn-danger-small";
+            deleteBtn.textContent = "Delete";
+            deleteBtn.addEventListener("click", () => {
+                tournaments.splice(i, 1);
+                localStorage.setItem("cricket_tournaments", JSON.stringify(tournaments));
+                loadSavedTournaments();
+            });
+            actions.appendChild(deleteBtn);
+            card.appendChild(actions);
+            list.appendChild(card);
+        });
+    }
+    loadSavedTournaments();
+
+    function saveTournament() {
+        if (!tournament) return;
+        const saved = JSON.parse(localStorage.getItem("cricket_tournaments") || "[]");
+        const idx = saved.findIndex(t => t.name === tournament.name);
+        if (idx >= 0) saved[idx] = tournament;
+        else saved.push(tournament);
+        localStorage.setItem("cricket_tournaments", JSON.stringify(saved));
+    }
+
+    // ── Tournament Setup ────────────────────────────────────
+    $("next-to-teams-btn").addEventListener("click", () => {
+        const name = $("tournament-name").value.trim();
+        if (!name) { $("tournament-name").focus(); return; }
+        tournament = {
+            name,
+            format: $("tournament-format").value,
+            overs: parseInt($("tournament-overs").value) || 10,
+            playersPerTeam: parseInt($("tournament-players").value) || 11,
+            teams: [],
+            fixtures: [],
+        };
+        renderTeamsList();
+        showScreen("team-setup-screen");
+    });
+
+    // ── Team Setup ──────────────────────────────────────────
+    $("back-to-tournament-setup-btn").addEventListener("click", () => showScreen("tournament-setup-screen"));
+
+    $("add-team-btn").addEventListener("click", addTeam);
+    $("new-team-name-input").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") addTeam();
+    });
+
+    function addTeam() {
+        const inp = $("new-team-name-input");
+        const name = inp.value.trim();
+        if (!name) return;
+        if (tournament.teams.some(t => t.name === name)) { inp.value = ""; return; }
+        const players = [];
+        for (let i = 0; i < tournament.playersPerTeam; i++) {
+            players.push(`${name} Player ${i + 1}`);
+        }
+        tournament.teams.push({ name, players });
+        inp.value = "";
+        renderTeamsList();
+    }
+
+    let editingTeamIndex = -1;
+
+    function renderTeamsList() {
+        const list = $("teams-list");
+        list.innerHTML = "";
+        tournament.teams.forEach((team, i) => {
+            const row = document.createElement("div");
+            row.className = "team-row";
+            row.innerHTML = `<span class="team-row-name">${team.name}</span><span class="team-row-meta">${team.players.length} players</span>`;
+            const actions = document.createElement("div");
+            actions.className = "team-row-actions";
+            const editBtn = document.createElement("button");
+            editBtn.className = "btn btn-secondary btn-small";
+            editBtn.textContent = "Edit Players";
+            editBtn.addEventListener("click", () => {
+                editingTeamIndex = i;
+                openTeamPlayersScreen(team);
+            });
+            actions.appendChild(editBtn);
+            const removeBtn = document.createElement("button");
+            removeBtn.className = "btn btn-danger-small btn-small";
+            removeBtn.textContent = "Remove";
+            removeBtn.addEventListener("click", () => {
+                tournament.teams.splice(i, 1);
+                renderTeamsList();
+            });
+            actions.appendChild(removeBtn);
+            row.appendChild(actions);
+            list.appendChild(row);
+        });
+        // Update generate button state
+        const minTeams = tournament.format === "knockout" ? 2 : 3;
+        $("generate-fixtures-btn").disabled = tournament.teams.length < minTeams;
+    }
+
+    function openTeamPlayersScreen(team) {
+        $("team-players-heading").textContent = team.name + " - Players";
+        const container = $("team-players-inputs");
+        container.innerHTML = "";
+        for (let i = 0; i < tournament.playersPerTeam; i++) {
+            const row = document.createElement("div");
+            row.className = "player-input-row";
+            row.innerHTML = `<span>${i + 1}.</span><input type="text" placeholder="${team.name} Player ${i + 1}" value="${team.players[i] || ""}">`;
+            container.appendChild(row);
+        }
+        showScreen("team-players-screen");
+    }
+
+    $("back-to-teams-btn").addEventListener("click", () => showScreen("team-setup-screen"));
+
+    $("save-team-players-btn").addEventListener("click", () => {
+        if (editingTeamIndex < 0) return;
+        const inputs = $("team-players-inputs").querySelectorAll("input");
+        const team = tournament.teams[editingTeamIndex];
+        team.players = Array.from(inputs).map((inp, i) => inp.value.trim() || `${team.name} Player ${i + 1}`);
+        editingTeamIndex = -1;
+        renderTeamsList();
+        showScreen("team-setup-screen");
+    });
+
+    // ── Fixture Generation ──────────────────────────────────
+    $("generate-fixtures-btn").addEventListener("click", () => {
+        if (tournament.format === "league") {
+            generateLeagueFixtures();
+        } else {
+            generateKnockoutFixtures();
+        }
+        saveTournament();
+        showTournamentDashboard();
+    });
+
+    function generateLeagueFixtures() {
+        tournament.fixtures = [];
+        const teams = tournament.teams;
+        for (let i = 0; i < teams.length; i++) {
+            for (let j = i + 1; j < teams.length; j++) {
+                tournament.fixtures.push({
+                    team1: teams[i].name,
+                    team2: teams[j].name,
+                    played: false,
+                    winner: null,
+                    result: "",
+                    round: 1,
+                });
+            }
+        }
+    }
+
+    function generateKnockoutFixtures() {
+        tournament.fixtures = [];
+        const teams = [...tournament.teams];
+        let round = 1;
+        // If odd number, last team gets a bye
+        for (let i = 0; i < teams.length - 1; i += 2) {
+            tournament.fixtures.push({
+                team1: teams[i].name,
+                team2: teams[i + 1].name,
+                played: false,
+                winner: null,
+                result: "",
+                round,
+            });
+        }
+        if (teams.length % 2 === 1) {
+            // Last team gets auto-bye marker
+            tournament.fixtures.push({
+                team1: teams[teams.length - 1].name,
+                team2: "BYE",
+                played: true,
+                winner: teams[teams.length - 1].name,
+                result: "Bye",
+                round,
+            });
+        }
+    }
+
+    // ── Tournament Dashboard ────────────────────────────────
+    function showTournamentDashboard() {
+        $("tournament-dashboard-title").textContent = tournament.name;
+        renderFixtures();
+        renderPointsTable();
+        showScreen("tournament-dashboard-screen");
+    }
+
+    // Tab switching
+    document.querySelectorAll(".tab-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+            document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+            document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+            btn.classList.add("active");
+            const tabId = "tab-" + btn.dataset.tab;
+            document.getElementById(tabId).classList.add("active");
+        });
+    });
+
+    function renderFixtures() {
+        const list = $("fixtures-list");
+        list.innerHTML = "";
+        if (tournament.fixtures.length === 0) {
+            list.innerHTML = '<p style="color:#78909c;text-align:center;">No fixtures yet</p>';
+            return;
+        }
+
+        // Group by round for knockout
+        const rounds = {};
+        tournament.fixtures.forEach((f, i) => {
+            const r = f.round || 1;
+            if (!rounds[r]) rounds[r] = [];
+            rounds[r].push({ fixture: f, index: i });
+        });
+
+        Object.keys(rounds).forEach(r => {
+            if (tournament.format === "knockout") {
+                const heading = document.createElement("div");
+                heading.className = "fixture-round-heading";
+                heading.textContent = "Round " + r;
+                list.appendChild(heading);
+            }
+            rounds[r].forEach(({ fixture, index }) => {
+                const card = document.createElement("div");
+                card.className = "fixture-card" + (fixture.played ? " fixture-completed" : "");
+                let inner = `<div class="fixture-teams"><span class="fixture-team ${fixture.winner === fixture.team1 ? "fixture-winner" : ""}">${fixture.team1}</span><span class="fixture-vs">vs</span><span class="fixture-team ${fixture.winner === fixture.team2 ? "fixture-winner" : ""}">${fixture.team2}</span></div>`;
+                if (fixture.played) {
+                    inner += `<div class="fixture-result">${fixture.result}</div>`;
+                } else {
+                    inner += `<button class="btn btn-primary btn-small fixture-play-btn" data-fixture="${index}">Play</button>`;
+                }
+                card.innerHTML = inner;
+                list.appendChild(card);
+            });
+        });
+
+        // Check if knockout needs next round
+        if (tournament.format === "knockout") {
+            const lastRound = Math.max(...tournament.fixtures.map(f => f.round || 1));
+            const lastRoundFixtures = tournament.fixtures.filter(f => f.round === lastRound);
+            const allPlayed = lastRoundFixtures.every(f => f.played);
+            const winners = lastRoundFixtures.filter(f => f.winner).map(f => f.winner);
+            if (allPlayed && winners.length > 1) {
+                const nextRound = lastRound + 1;
+                for (let i = 0; i < winners.length - 1; i += 2) {
+                    tournament.fixtures.push({
+                        team1: winners[i],
+                        team2: winners[i + 1],
+                        played: false, winner: null, result: "",
+                        round: nextRound,
+                    });
+                }
+                if (winners.length % 2 === 1) {
+                    tournament.fixtures.push({
+                        team1: winners[winners.length - 1],
+                        team2: "BYE",
+                        played: true,
+                        winner: winners[winners.length - 1],
+                        result: "Bye",
+                        round: nextRound,
+                    });
+                }
+                saveTournament();
+                renderFixtures();
+                return;
+            }
+            // Check for tournament winner
+            if (allPlayed && winners.length === 1) {
+                const banner = document.createElement("div");
+                banner.className = "tournament-winner-banner";
+                banner.textContent = winners[0] + " wins the tournament!";
+                list.prepend(banner);
+            }
+        }
+
+        // Attach play buttons
+        list.querySelectorAll(".fixture-play-btn").forEach(btn => {
+            btn.addEventListener("click", () => {
+                const fIdx = parseInt(btn.dataset.fixture);
+                startTournamentMatch(fIdx);
+            });
+        });
+    }
+
+    function renderPointsTable() {
+        const container = $("points-table-container");
+        if (tournament.format === "knockout") {
+            container.innerHTML = '<p style="color:#78909c;text-align:center;padding:16px;">Points table is not applicable for knockout tournaments.</p>';
+            return;
+        }
+        // Build points table
+        const table = {};
+        tournament.teams.forEach(t => {
+            table[t.name] = { played: 0, won: 0, lost: 0, tied: 0, nrr: 0, points: 0, runsFor: 0, ballsFor: 0, runsAgainst: 0, ballsAgainst: 0 };
+        });
+        tournament.fixtures.forEach(f => {
+            if (!f.played || !f.matchData) return;
+            const md = f.matchData;
+            const t1 = f.team1, t2 = f.team2;
+            if (table[t1]) {
+                table[t1].played++;
+                table[t1].runsFor += md.team1Runs;
+                table[t1].ballsFor += md.team1Balls;
+                table[t1].runsAgainst += md.team2Runs;
+                table[t1].ballsAgainst += md.team2Balls;
+            }
+            if (table[t2]) {
+                table[t2].played++;
+                table[t2].runsFor += md.team2Runs;
+                table[t2].ballsFor += md.team2Balls;
+                table[t2].runsAgainst += md.team1Runs;
+                table[t2].ballsAgainst += md.team1Balls;
+            }
+            if (f.winner === t1) {
+                if (table[t1]) { table[t1].won++; table[t1].points += 2; }
+                if (table[t2]) table[t2].lost++;
+            } else if (f.winner === t2) {
+                if (table[t2]) { table[t2].won++; table[t2].points += 2; }
+                if (table[t1]) table[t1].lost++;
+            } else {
+                // Tie
+                if (table[t1]) { table[t1].tied++; table[t1].points += 1; }
+                if (table[t2]) { table[t2].tied++; table[t2].points += 1; }
+            }
+        });
+        // Calculate NRR
+        Object.values(table).forEach(e => {
+            const forRate = e.ballsFor > 0 ? (e.runsFor / e.ballsFor) * 6 : 0;
+            const againstRate = e.ballsAgainst > 0 ? (e.runsAgainst / e.ballsAgainst) * 6 : 0;
+            e.nrr = forRate - againstRate;
+        });
+        // Sort by points desc, then NRR desc
+        const sorted = Object.entries(table).sort((a, b) => {
+            if (b[1].points !== a[1].points) return b[1].points - a[1].points;
+            return b[1].nrr - a[1].nrr;
+        });
+
+        let html = `<table class="points-table"><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>L</th><th>T</th><th>Pts</th><th>NRR</th></tr>`;
+        sorted.forEach(([name, e], i) => {
+            html += `<tr><td>${i + 1}</td><td class="pt-team">${name}</td><td>${e.played}</td><td>${e.won}</td><td>${e.lost}</td><td>${e.tied}</td><td class="pt-pts">${e.points}</td><td class="pt-nrr">${e.nrr >= 0 ? "+" : ""}${e.nrr.toFixed(3)}</td></tr>`;
+        });
+        html += `</table>`;
+        container.innerHTML = html;
+    }
+
+    // ── Start Tournament Match ──────────────────────────────
+    function startTournamentMatch(fixtureIndex) {
+        currentFixtureIndex = fixtureIndex;
+        const fixture = tournament.fixtures[fixtureIndex];
+        const team1Data = tournament.teams.find(t => t.name === fixture.team1);
+        const team2Data = tournament.teams.find(t => t.name === fixture.team2);
+
+        // Pre-fill setup screen
+        $("team1-name").value = fixture.team1;
+        $("team2-name").value = fixture.team2;
+        $("overs-limit").value = tournament.overs;
+        $("players-per-team").value = tournament.playersPerTeam;
+        $("team1-name").readOnly = true;
+        $("team2-name").readOnly = true;
+        $("overs-limit").readOnly = true;
+        $("players-per-team").readOnly = true;
+        updateTossLabels();
+        showScreen("setup-screen");
+
+        // Store team player data so player entry screen can use it
+        tournament._pendingTeam1Players = team1Data ? team1Data.players : null;
+        tournament._pendingTeam2Players = team2Data ? team2Data.players : null;
+    }
+
+    $("back-to-tournament-btn").addEventListener("click", () => {
+        $("back-to-tournament-btn").classList.add("hidden");
+        match = null;
+        showTournamentDashboard();
+    });
+
+    $("back-to-home-from-dashboard-btn").addEventListener("click", () => {
+        loadSavedTournaments();
+        showScreen("home-screen");
     });
 })();

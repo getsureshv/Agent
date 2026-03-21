@@ -31,7 +31,8 @@ body {
 }
 
 /* Setup Screen */
-#setup-screen h1 {
+#setup-screen h1,
+#match-setup-heading {
     text-align: center;
     font-size: 28px;
     color: #4fc3f7;
@@ -827,6 +828,336 @@ body {
 
 .player-entry-actions .btn {
     flex: 1;
+}
+
+/* Home Screen */
+#home-screen h1 {
+    text-align: center;
+    font-size: 28px;
+    color: #4fc3f7;
+    margin: 40px 0 24px;
+}
+
+.home-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.btn-accent {
+    background: #7c4dff;
+    color: white;
+}
+
+.btn-accent:hover {
+    background: #651fff;
+}
+
+/* Saved Tournaments */
+.saved-tournaments {
+    margin-top: 24px;
+}
+
+.saved-tournaments h3 {
+    color: #78909c;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+}
+
+.tournament-card {
+    background: #132038;
+    border: 1px solid #1e3250;
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.tournament-card-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.tournament-card-info strong {
+    color: #e0e0e0;
+    font-size: 15px;
+}
+
+.tournament-card-meta {
+    color: #78909c;
+    font-size: 12px;
+}
+
+.tournament-card-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.btn-danger-small {
+    background: #4a1c1c;
+    color: #ef9a9a;
+    border: none;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.btn-danger-small:hover {
+    background: #5a2020;
+}
+
+/* Tournament Setup */
+#tournament-setup-screen h1 {
+    text-align: center;
+    font-size: 28px;
+    color: #4fc3f7;
+    margin: 24px 0;
+}
+
+.form-select {
+    padding: 10px 12px;
+    border: 1px solid #2a3a52;
+    border-radius: 8px;
+    background: #132038;
+    color: #e0e0e0;
+    font-size: 16px;
+    appearance: auto;
+}
+
+/* Team Setup */
+#team-setup-screen h1 {
+    text-align: center;
+    font-size: 28px;
+    color: #4fc3f7;
+    margin: 24px 0 16px;
+}
+
+.team-setup-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.add-team-row {
+    display: flex;
+    gap: 8px;
+}
+
+.add-team-row input {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid #2a3a52;
+    border-radius: 8px;
+    background: #132038;
+    color: #e0e0e0;
+    font-size: 16px;
+}
+
+.teams-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.team-row {
+    background: #132038;
+    border: 1px solid #1e3250;
+    border-radius: 10px;
+    padding: 12px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.team-row-name {
+    color: #e0e0e0;
+    font-weight: 600;
+    font-size: 15px;
+}
+
+.team-row-meta {
+    color: #78909c;
+    font-size: 12px;
+}
+
+.team-row-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.btn-small {
+    padding: 6px 12px;
+    font-size: 13px;
+}
+
+/* Team Players Screen */
+#team-players-screen h1 {
+    text-align: center;
+    font-size: 22px;
+    color: #4fc3f7;
+    margin: 24px 0 16px;
+}
+
+/* Tournament Dashboard */
+#tournament-dashboard-screen h1 {
+    text-align: center;
+    font-size: 24px;
+    color: #4fc3f7;
+    margin: 16px 0 12px;
+}
+
+.tab-bar {
+    display: flex;
+    gap: 0;
+    margin-bottom: 16px;
+    background: #132038;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 10px;
+    background: transparent;
+    border: none;
+    color: #78909c;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+
+.tab-btn.active {
+    background: #1e3250;
+    color: #4fc3f7;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* Fixtures */
+.fixtures-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.fixture-round-heading {
+    color: #78909c;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 8px;
+    margin-bottom: 4px;
+}
+
+.fixture-card {
+    background: #132038;
+    border: 1px solid #1e3250;
+    border-radius: 10px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.fixture-completed {
+    opacity: 0.7;
+}
+
+.fixture-teams {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+}
+
+.fixture-team {
+    font-size: 15px;
+    font-weight: 600;
+    color: #e0e0e0;
+}
+
+.fixture-winner {
+    color: #a5d6a7;
+}
+
+.fixture-vs {
+    color: #78909c;
+    font-size: 12px;
+    text-transform: uppercase;
+}
+
+.fixture-result {
+    text-align: center;
+    color: #78909c;
+    font-size: 12px;
+}
+
+.fixture-play-btn {
+    align-self: center;
+}
+
+/* Points Table */
+.points-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.points-table th {
+    text-align: left;
+    padding: 8px 6px;
+    border-bottom: 2px solid #2a3a52;
+    color: #78909c;
+    font-size: 11px;
+    text-transform: uppercase;
+}
+
+.points-table td {
+    padding: 8px 6px;
+    border-bottom: 1px solid #1e3250;
+    color: #e0e0e0;
+}
+
+.pt-team {
+    font-weight: 600;
+    color: #90caf9;
+}
+
+.pt-pts {
+    font-weight: 700;
+    color: #a5d6a7;
+}
+
+.pt-nrr {
+    font-size: 12px;
+    color: #78909c;
+}
+
+/* Tournament Winner */
+.tournament-winner-banner {
+    background: linear-gradient(135deg, #1b5e20, #2e7d32);
+    color: #a5d6a7;
+    text-align: center;
+    padding: 16px;
+    border-radius: 12px;
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 16px;
 }
 
 /* Responsive */

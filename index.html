@@ -8,9 +8,94 @@
 </head>
 <body>
     <div id="app">
-        <!-- Setup Screen -->
-        <div id="setup-screen" class="screen active">
+        <!-- Home Screen -->
+        <div id="home-screen" class="screen active">
             <h1>Cricket Scorer</h1>
+            <div class="home-actions">
+                <button class="btn btn-primary btn-large" id="quick-match-btn">Quick Match</button>
+                <button class="btn btn-accent btn-large" id="new-tournament-btn">New Tournament</button>
+                <div id="saved-tournaments-section" class="saved-tournaments" style="display:none;">
+                    <h3>Saved Tournaments</h3>
+                    <div id="saved-tournaments-list"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tournament Setup Screen -->
+        <div id="tournament-setup-screen" class="screen">
+            <h1>Tournament Setup</h1>
+            <div class="setup-form">
+                <div class="form-group">
+                    <label for="tournament-name">Tournament Name</label>
+                    <input type="text" id="tournament-name" placeholder="e.g. Weekend League" value="">
+                </div>
+                <div class="form-group">
+                    <label for="tournament-format">Format</label>
+                    <select id="tournament-format" class="form-select">
+                        <option value="league">League (Round Robin)</option>
+                        <option value="knockout">Knockout</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="tournament-overs">Overs per Innings</label>
+                    <input type="number" id="tournament-overs" min="1" max="50" value="10">
+                </div>
+                <div class="form-group">
+                    <label for="tournament-players">Players per Team</label>
+                    <input type="number" id="tournament-players" min="2" max="11" value="11">
+                </div>
+                <div class="home-actions">
+                    <button class="btn btn-secondary btn-large" id="back-to-home-btn">Back</button>
+                    <button class="btn btn-primary btn-large" id="next-to-teams-btn">Next: Add Teams</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Team Setup Screen -->
+        <div id="team-setup-screen" class="screen">
+            <h1>Teams</h1>
+            <div class="team-setup-form">
+                <div class="add-team-row">
+                    <input type="text" id="new-team-name-input" placeholder="Enter team name">
+                    <button class="btn btn-primary" id="add-team-btn">Add</button>
+                </div>
+                <div id="teams-list" class="teams-list"></div>
+                <div class="home-actions">
+                    <button class="btn btn-secondary btn-large" id="back-to-tournament-setup-btn">Back</button>
+                    <button class="btn btn-primary btn-large" id="generate-fixtures-btn">Generate Fixtures</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Team Players Screen (add players to a specific team) -->
+        <div id="team-players-screen" class="screen">
+            <h1 id="team-players-heading">Team Players</h1>
+            <div id="team-players-inputs" class="player-inputs"></div>
+            <div class="home-actions" style="margin-top:16px;">
+                <button class="btn btn-secondary btn-large" id="back-to-teams-btn">Back</button>
+                <button class="btn btn-primary btn-large" id="save-team-players-btn">Save Players</button>
+            </div>
+        </div>
+
+        <!-- Tournament Dashboard (fixtures + points table) -->
+        <div id="tournament-dashboard-screen" class="screen">
+            <h1 id="tournament-dashboard-title">Tournament</h1>
+            <div class="tab-bar">
+                <button class="tab-btn active" data-tab="fixtures">Fixtures</button>
+                <button class="tab-btn" data-tab="points">Points Table</button>
+            </div>
+            <div id="tab-fixtures" class="tab-content active">
+                <div id="fixtures-list" class="fixtures-list"></div>
+            </div>
+            <div id="tab-points" class="tab-content">
+                <div id="points-table-container"></div>
+            </div>
+            <button class="btn btn-secondary btn-large" id="back-to-home-from-dashboard-btn" style="margin-top:16px;">Back to Home</button>
+        </div>
+
+        <!-- Match Setup Screen (for both quick match and tournament match) -->
+        <div id="setup-screen" class="screen">
+            <h1>Match Setup</h1>
             <div class="setup-form">
                 <div class="form-group">
                     <label for="team1-name">Team 1</label>
@@ -256,6 +341,7 @@
             <h1 id="result-text"></h1>
             <div id="result-summary"></div>
             <button class="btn btn-primary btn-large" id="new-match-btn">New Match</button>
+            <button class="btn btn-accent btn-large hidden" id="back-to-tournament-btn" style="margin-top:8px;">Back to Tournament</button>
         </div>
     </div>
 
