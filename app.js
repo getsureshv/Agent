@@ -2485,57 +2485,69 @@
 
     // Map spoken words to scoring actions
     const wordToNumber = {
-        zero: 0, oh: 0, dot: 0, "no run": 0, "no runs": 0, "dot ball": 0,
-        one: 1, single: 1, "a run": 1,
-        two: 2, double: 2, couple: 2,
-        three: 3, triple: 3,
-        four: 4, boundary: 4,
-        five: 5,
-        six: 6, sixer: 6, maximum: 6
+        zero: 0, oh: 0, dot: 0, "no run": 0, "no runs": 0, "dot ball": 0, nought: 0, nothing: 0,
+        one: 1, single: 1, "a run": 1, "one run": 1, won: 1,
+        two: 2, double: 2, couple: 2, "two runs": 2, too: 2, to: 2,
+        three: 3, triple: 3, "three runs": 3, tree: 3,
+        four: 4, boundary: 4, "four runs": 4, for: 4,
+        five: 5, "five runs": 5,
+        six: 6, sixer: 6, maximum: 6, "six runs": 6, "over the fence": 6, "out of the park": 6
     };
 
     function parseVoiceCommand(transcript) {
-        const t = transcript.toLowerCase().trim();
+        const t = transcript.toLowerCase().trim()
+            .replace(/[.,!?;:'"]+/g, "")   // strip punctuation
+            .replace(/\s+/g, " ");           // normalize whitespace
 
-        // Wicket commands
-        if (/\b(wicket|out|bowled)\b/.test(t)) {
-            if (/\bcaught\b/.test(t)) return { action: "wicket", type: "caught" };
-            if (/\blbw\b/.test(t)) return { action: "wicket", type: "lbw" };
+        // Change bowler commands
+        if (/\b(change|switch|new)\s*(the\s+)?bowler\b/.test(t)) return { action: "change_bowler" };
+
+        // Change batsman / striker / non-striker commands
+        if (/\b(change|switch|new|replace)\s*(the\s+)?(striker|batsman|batter|batman)\b/.test(t)) return { action: "change_striker" };
+        if (/\b(change|switch|new|replace)\s*(the\s+)?non[- ]?striker\b/.test(t)) return { action: "change_non_striker" };
+
+        // Scorecard
+        if (/\b(scorecard|score\s*card|score\s*board|scoreboard|show\s*score|view\s*score)\b/.test(t)) return { action: "scorecard" };
+
+        // Wicket commands — improved recognition
+        if (/\b(wicket|out|bowled|dismiss(ed)?|gone|got\s*him)\b/.test(t)) {
+            if (/\bcaught\b/.test(t) || /\bcatch\b/.test(t)) return { action: "wicket", type: "caught" };
+            if (/\blbw\b/.test(t) || /\bleg\s*before\b/.test(t)) return { action: "wicket", type: "lbw" };
             if (/\brun\s*out\b/.test(t)) return { action: "wicket", type: "runout" };
-            if (/\bstump(ed)?\b/.test(t)) return { action: "wicket", type: "stumped" };
+            if (/\bstump(ed|ing)?\b/.test(t)) return { action: "wicket", type: "stumped" };
             if (/\bhit\s*wicket\b/.test(t)) return { action: "wicket", type: "hitwicket" };
-            if (/\bretired\b/.test(t)) return { action: "wicket", type: "retired" };
-            if (/\bbowled\b/.test(t)) return { action: "wicket", type: "bowled" };
+            if (/\bretire[d]?\b/.test(t)) return { action: "wicket", type: "retired" };
+            if (/\bbowled\b/.test(t) || /\bclean\s*bowled\b/.test(t)) return { action: "wicket", type: "bowled" };
             return { action: "wicket", type: "bowled" };
         }
 
-        // Extras
-        if (/\bwide\b/.test(t)) {
+        // Extras — improved recognition
+        if (/\bwide\b/.test(t) || /\bwhy\b/.test(t)) {
             const extra = extractExtraRuns(t);
             return { action: "extra", type: "wide", additionalRuns: extra };
         }
-        if (/\bno\s*ball\b/.test(t)) {
+        if (/\bno\s*ball\b/.test(t) || /\bfree\s*hit\b/.test(t)) {
             const extra = extractExtraRuns(t);
             return { action: "extra", type: "noball", additionalRuns: extra };
         }
-        if (/\bleg\s*bye\b/.test(t)) {
+        if (/\bleg\s*bye\b/.test(t) || /\bleg\s*by\b/.test(t)) {
             const extra = extractExtraRuns(t);
             return { action: "extra", type: "legbye", additionalRuns: extra };
         }
-        if (/\bbye\b/.test(t) && !/\bgood\s*bye\b/.test(t)) {
+        if (/\bbye\b/.test(t) && !/\bgood\s*bye\b/.test(t) && !/\bbye\s*bye\b/.test(t)) {
             const extra = extractExtraRuns(t);
             return { action: "extra", type: "bye", additionalRuns: extra };
         }
 
         // Undo
-        if (/\bundo\b/.test(t)) return { action: "undo" };
+        if (/\bundo\b/.test(t) || /\bgo\s*back\b/.test(t) || /\brevert\b/.test(t) || /\bcancel\s*last\b/.test(t)) return { action: "undo" };
 
         // Swap
-        if (/\bswap\b/.test(t)) return { action: "swap" };
+        if (/\bswap\b/.test(t) || /\bswitch\s*(the\s+)?(ends|strike|batsmen|batsman|strikers)\b/.test(t) || /\brotate\s*strike\b/.test(t)) return { action: "swap" };
 
         // Runs — check word names first
         for (const [word, num] of Object.entries(wordToNumber)) {
-            if (t.includes(word)) return { action: "runs", runs: num };
+            if (t === word || new RegExp(`\\b${word}\\b`).test(t)) return { action: "runs", runs: num };
         }
 
         // Runs — check digit
@@ -2571,6 +2583,18 @@
             case "swap":
                 $("swap-btn").click();
                 return true;
+            case "scorecard":
+                $("scorecard-btn").click();
+                return true;
+            case "change_bowler":
+                showChangeBowler();
+                return true;
+            case "change_striker":
+                showChangeBatsman("striker");
+                return true;
+            case "change_non_striker":
+                showChangeBatsman("non-striker");
+                return true;
         }
         return false;
     }
@@ -2583,9 +2607,16 @@
                 const names = { wide: "Wide", noball: "No Ball", bye: "Bye", legbye: "Leg Bye" };
                 return (names[cmd.type] || cmd.type) + (cmd.additionalRuns ? " + " + cmd.additionalRuns : "");
             }
-            case "wicket": return "Wicket — " + cmd.type;
+            case "wicket": {
+                const wNames = { bowled: "Bowled", caught: "Caught", lbw: "LBW", runout: "Run Out", stumped: "Stumped", hitwicket: "Hit Wicket", retired: "Retired" };
+                return "Wicket — " + (wNames[cmd.type] || cmd.type);
+            }
             case "undo": return "Undo";
             case "swap": return "Swap Batsmen";
+            case "scorecard": return "Show Scorecard";
+            case "change_bowler": return "Change Bowler";
+            case "change_striker": return "Change Striker";
+            case "change_non_striker": return "Change Non-Striker";
         }
         return "Unknown";
     }
@@ -2603,7 +2634,7 @@
                     setVoiceStatus(scoreVoiceStatus, describeCommand(cmd), "success-text");
                     scoreCommandInput.value = "";
                 } else {
-                    setVoiceStatus(scoreVoiceStatus, '"' + text + '" — not recognized. Try: four, wide, wicket caught, undo', "error-text");
+                    setVoiceStatus(scoreVoiceStatus, '"' + text + '" — not recognized. Try: dot, four, six, wide, no ball, bye, leg bye, wicket bowled/caught/lbw/run out/stumped, undo, swap, change bowler, change striker, scorecard', "error-text");
                 }
             }
         });
@@ -2623,7 +2654,7 @@
             scoreRecog.onstart = () => {
                 scoreListening = true;
                 voiceScoreBtn.classList.add("listening");
-                setVoiceStatus(scoreVoiceStatus, 'Say: "four", "wide", "wicket bowled", "no ball", "undo"...', "listening-text");
+                setVoiceStatus(scoreVoiceStatus, 'Say: "four", "wide", "wicket caught", "change bowler", "swap", "scorecard"...', "listening-text");
             };
             scoreRecog.onresult = (e) => {
                 const transcript = e.results[0][0].transcript;
