@@ -13,6 +13,7 @@
             sixes: 0,
             isOut: false,
             dismissal: "",
+            ballHistory: [],
             strikeRate() {
                 return this.balls > 0 ? ((this.runs / this.balls) * 100).toFixed(1) : "0.0";
             },
@@ -303,7 +304,9 @@
         else if (runs === 6) chipClass = "ball-six";
         else chipClass = "ball-run";
 
-        addBallToOver(inn, bowler, { label: String(runs), chipClass });
+        const ball = { label: String(runs), chipClass };
+        addBallToOver(inn, bowler, ball);
+        striker.ballHistory.push(ball);
 
         if (runs % 2 === 1) swapStrike(inn);
 
@@ -376,7 +379,9 @@
                 if (additionalRuns === 4) striker.fours++;
                 if (additionalRuns === 6) striker.sixes++;
             }
-            addBallToOver(inn, bowler, { label: `NB+${additionalRuns}`, chipClass: "ball-noball" });
+            const nbBall = { label: `NB+${additionalRuns}`, chipClass: "ball-noball" };
+            addBallToOver(inn, bowler, nbBall);
+            striker.ballHistory.push(nbBall);
             if (additionalRuns % 2 === 1) swapStrike(inn);
         } else if (type === "bye") {
             inn.totalRuns += additionalRuns;
@@ -385,7 +390,9 @@
             const striker = inn.batsmen[inn.strikerIndex];
             striker.balls += 1;
             bowler.runsThisOver += 0;
-            addBallToOver(inn, bowler, { label: `B${additionalRuns}`, chipClass: "ball-bye" });
+            const byeBall = { label: `B${additionalRuns}`, chipClass: "ball-bye" };
+            addBallToOver(inn, bowler, byeBall);
+            striker.ballHistory.push(byeBall);
             if (additionalRuns % 2 === 1) swapStrike(inn);
             checkOverComplete(inn);
         } else if (type === "legbye") {
@@ -395,7 +402,9 @@
             const striker = inn.batsmen[inn.strikerIndex];
             striker.balls += 1;
             bowler.runsThisOver += 0;
-            addBallToOver(inn, bowler, { label: `LB${additionalRuns}`, chipClass: "ball-legbye" });
+            const lbBall = { label: `LB${additionalRuns}`, chipClass: "ball-legbye" };
+            addBallToOver(inn, bowler, lbBall);
+            striker.ballHistory.push(lbBall);
             if (additionalRuns % 2 === 1) swapStrike(inn);
             checkOverComplete(inn);
         }
@@ -433,7 +442,9 @@
         }
         bowler.runsThisOver += 0;
 
-        addBallToOver(inn, bowler, { label: "W", chipClass: "ball-wicket" });
+        const wBall = { label: "W", chipClass: "ball-wicket" };
+        addBallToOver(inn, bowler, wBall);
+        striker.ballHistory.push(wBall);
 
         if (inn.totalWickets >= match.playersPerTeam - 1) {
             checkOverComplete(inn);
@@ -625,7 +636,7 @@
             thisOver: [...inn.thisOver],
             lastOver: [...inn.lastOver],
             lastOverRuns: inn.lastOverRuns,
-            batsmen: inn.batsmen.map((b) => ({ ...b })),
+            batsmen: inn.batsmen.map((b) => ({ ...b, ballHistory: [...b.ballHistory] })),
             bowlers: inn.bowlers.map((b) => ({
                 ...b,
                 overHistory: b.overHistory.map((o) => ({ balls: [...o.balls], runs: o.runs })),
@@ -648,6 +659,7 @@
         inn.batsmen = snap.batsmen.map((b) => {
             const p = createPlayer(b.name);
             Object.assign(p, b);
+            p.ballHistory = [...b.ballHistory];
             return p;
         });
         inn.bowlers = snap.bowlers.map((b) => {
@@ -671,6 +683,61 @@
         swapStrike(inn);
         updateDisplay();
     });
+
+    // ── Batsman Detail Modal ─────────────────────────────
+    $("striker-row").addEventListener("click", () => {
+        const inn = currentInnings();
+        showBatsmanDetail(inn.batsmen[inn.strikerIndex]);
+    });
+
+    $("non-striker-row").addEventListener("click", () => {
+        const inn = currentInnings();
+        showBatsmanDetail(inn.batsmen[inn.nonStrikerIndex]);
+    });
+
+    $("close-batsman-detail").addEventListener("click", () => hideModal("batsman-detail-modal"));
+
+    function showBatsmanDetail(batsman) {
+        $("batsman-detail-name").textContent = batsman.name;
+
+        const sr = batsman.strikeRate();
+        const statsHtml = `
+            <div class="batsman-stats-grid">
+                <div class="batsman-stat"><span class="stat-value">${batsman.runs}</span><span class="stat-label">Runs</span></div>
+                <div class="batsman-stat"><span class="stat-value">${batsman.balls}</span><span class="stat-label">Balls</span></div>
+                <div class="batsman-stat"><span class="stat-value">${batsman.fours}</span><span class="stat-label">4s</span></div>
+                <div class="batsman-stat"><span class="stat-value">${batsman.sixes}</span><span class="stat-label">6s</span></div>
+                <div class="batsman-stat"><span class="stat-value">${sr}</span><span class="stat-label">SR</span></div>
+            </div>
+            <div class="batsman-dismissal ${batsman.isOut ? "" : "not-out"}">${batsman.isOut ? batsman.dismissal : "Not Out"}</div>`;
+        $("batsman-detail-figures").innerHTML = statsHtml;
+
+        const container = $("batsman-ball-timeline");
+        container.innerHTML = "";
+
+        if (batsman.ballHistory.length === 0) {
+            container.innerHTML = '<p style="color:#78909c;text-align:center;font-size:13px;">No balls faced yet</p>';
+            showModal("batsman-detail-modal");
+            return;
+        }
+
+        const heading = document.createElement("div");
+        heading.className = "ball-timeline-heading";
+        heading.textContent = "Ball-by-Ball Timeline";
+        container.appendChild(heading);
+
+        const timeline = document.createElement("div");
+        timeline.className = "ball-timeline";
+        batsman.ballHistory.forEach((b) => {
+            const chip = document.createElement("span");
+            chip.className = "ball-chip " + b.chipClass;
+            chip.textContent = b.label;
+            timeline.appendChild(chip);
+        });
+        container.appendChild(timeline);
+
+        showModal("batsman-detail-modal");
+    }
 
     // ── Bowler Detail Modal ────────────────────────────────
     $("bowler-panel").addEventListener("click", () => {
