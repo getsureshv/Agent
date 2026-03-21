@@ -119,7 +119,8 @@ body {
     background: #263f5e;
 }
 
-.btn-run {
+.btn-run,
+.btn-extra-run {
     background: #1b3a26;
     color: #66bb6a;
     min-width: 52px;
@@ -127,7 +128,8 @@ body {
     font-size: 20px;
 }
 
-.btn-run:hover {
+.btn-run:hover,
+.btn-extra-run:hover {
     background: #255a35;
 }
 
