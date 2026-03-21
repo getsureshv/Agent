@@ -101,10 +101,28 @@
                 <span id="bowler-figures">0-0-0-0</span>
             </div>
 
+            <!-- Extras Display -->
+            <div class="extras-display" id="extras-display">
+                Extras: <span id="extras-total">0</span>
+                <span class="extras-breakdown" id="extras-breakdown">(wd 0, nb 0, b 0, lb 0)</span>
+            </div>
+
             <!-- This Over -->
             <div class="this-over">
                 <span class="over-label">This Over:</span>
                 <div id="this-over-balls" class="over-balls"></div>
+            </div>
+
+            <!-- Last Over (collapsible) -->
+            <div class="last-over" id="last-over-section" style="display:none;">
+                <div class="last-over-header" id="last-over-toggle">
+                    <span class="over-label">Last Over:</span>
+                    <span class="last-over-summary" id="last-over-summary"></span>
+                    <span class="toggle-arrow" id="toggle-arrow">&#9660;</span>
+                </div>
+                <div class="last-over-detail hidden" id="last-over-detail">
+                    <div id="last-over-balls" class="over-balls"></div>
+                </div>
             </div>
 
             <!-- Scoring Buttons -->
@@ -201,6 +219,16 @@
             <div class="modal-content">
                 <h2>Select New Batsman</h2>
                 <div id="batsman-list" class="player-list"></div>
+            </div>
+        </div>
+
+        <!-- Bowler Detail Modal -->
+        <div id="bowler-detail-modal" class="modal hidden">
+            <div class="modal-content">
+                <button class="modal-close" id="close-bowler-detail">&times;</button>
+                <h2 id="bowler-detail-name">Bowler</h2>
+                <div id="bowler-detail-figures" class="bowler-detail-summary"></div>
+                <div id="bowler-over-history"></div>
             </div>
         </div>
 

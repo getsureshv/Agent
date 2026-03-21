@@ -270,16 +270,112 @@ body {
     font-weight: 600;
 }
 
+/* Extras Display */
+.extras-display {
+    background: #132038;
+    border-radius: 12px;
+    padding: 10px 16px;
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: #ffab91;
+}
+
+.extras-breakdown {
+    color: #78909c;
+    font-size: 12px;
+}
+
 /* This Over */
 .this-over {
     background: #132038;
     border-radius: 12px;
     padding: 10px 16px;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
     display: flex;
     align-items: center;
     gap: 10px;
     min-height: 44px;
+}
+
+/* Last Over */
+.last-over {
+    background: #132038;
+    border-radius: 12px;
+    margin-bottom: 12px;
+    overflow: hidden;
+}
+
+.last-over-header {
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.last-over-summary {
+    flex: 1;
+    font-size: 14px;
+    color: #a5d6a7;
+    font-weight: 600;
+}
+
+.toggle-arrow {
+    color: #78909c;
+    font-size: 12px;
+    transition: transform 0.2s;
+}
+
+.toggle-arrow.open {
+    transform: rotate(180deg);
+}
+
+.last-over-detail {
+    padding: 0 16px 12px;
+}
+
+/* Bowler Detail */
+.bowler-panel {
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.bowler-detail-summary {
+    text-align: center;
+    color: #78909c;
+    font-size: 14px;
+    margin-bottom: 16px;
+}
+
+.bowler-over-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid #1e3250;
+}
+
+.bowler-over-label {
+    color: #78909c;
+    font-size: 13px;
+    min-width: 52px;
+    white-space: nowrap;
+}
+
+.bowler-over-balls {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    flex: 1;
+}
+
+.bowler-over-runs {
+    color: #a5d6a7;
+    font-weight: 600;
+    font-size: 14px;
+    min-width: 32px;
+    text-align: right;
 }
 
 .over-label {

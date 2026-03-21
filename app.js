@@ -28,6 +28,8 @@
             runs: 0,
             wickets: 0,
             runsThisOver: 0,
+            overHistory: [],
+            currentOverBalls: [],
             figures() {
                 const o = this.overs + "." + this.ballsInOver;
                 return `${o}-${this.maidens}-${this.runs}-${this.wickets}`;
@@ -55,6 +57,8 @@
             nonStrikerIndex: 1,
             currentBowlerIndex: -1,
             thisOver: [],
+            lastOver: [],
+            lastOverRuns: 0,
             history: [],
             isComplete: false,
         };
@@ -206,7 +210,16 @@
             $("bowler-figures").textContent = bowler.figures();
         }
 
+        // Extras display
+        const wd = inn.extras.wides || 0;
+        const nb = inn.extras.noBalls || 0;
+        const by = inn.extras.byes || 0;
+        const lb = inn.extras.legByes || 0;
+        $("extras-total").textContent = wd + nb + by + lb;
+        $("extras-breakdown").textContent = `(wd ${wd}, nb ${nb}, b ${by}, lb ${lb})`;
+
         renderThisOver(inn.thisOver);
+        renderLastOver(inn);
     }
 
     function formatOvers(balls) {
@@ -224,8 +237,38 @@
         });
     }
 
+    function renderLastOver(inn) {
+        const section = $("last-over-section");
+        if (inn.lastOver.length === 0) {
+            section.style.display = "none";
+            return;
+        }
+        section.style.display = "";
+        $("last-over-summary").textContent = `${inn.lastOverRuns} runs`;
+        const container = $("last-over-balls");
+        container.innerHTML = "";
+        inn.lastOver.forEach((b) => {
+            const chip = document.createElement("span");
+            chip.className = "ball-chip " + b.chipClass;
+            chip.textContent = b.label;
+            container.appendChild(chip);
+        });
+    }
+
+    $("last-over-toggle").addEventListener("click", () => {
+        const detail = $("last-over-detail");
+        const arrow = $("toggle-arrow");
+        detail.classList.toggle("hidden");
+        arrow.classList.toggle("open");
+    });
+
     function currentInnings() {
         return match.innings[match.currentInnings];
+    }
+
+    function addBallToOver(inn, bowler, ball) {
+        inn.thisOver.push(ball);
+        bowler.currentOverBalls.push(ball);
     }
 
     // ── Scoring ────────────────────────────────────────────
@@ -260,7 +303,7 @@
         else if (runs === 6) chipClass = "ball-six";
         else chipClass = "ball-run";
 
-        inn.thisOver.push({ label: String(runs), chipClass });
+        addBallToOver(inn, bowler, { label: String(runs), chipClass });
 
         if (runs % 2 === 1) swapStrike(inn);
 
@@ -319,7 +362,7 @@
             inn.extras.wides += total;
             bowler.runs += total;
             bowler.runsThisOver += total;
-            inn.thisOver.push({ label: `Wd+${additionalRuns}`, chipClass: "ball-wide" });
+            addBallToOver(inn, bowler, { label: `Wd+${additionalRuns}`, chipClass: "ball-wide" });
             if (additionalRuns % 2 === 1) swapStrike(inn);
         } else if (type === "noball") {
             const total = 1 + additionalRuns;
@@ -328,13 +371,12 @@
             bowler.runs += total;
             bowler.runsThisOver += total;
             const striker = inn.batsmen[inn.strikerIndex];
-            // Additional runs off a no-ball are credited to the batsman
             if (additionalRuns > 0) {
                 striker.runs += additionalRuns;
                 if (additionalRuns === 4) striker.fours++;
                 if (additionalRuns === 6) striker.sixes++;
             }
-            inn.thisOver.push({ label: `NB+${additionalRuns}`, chipClass: "ball-noball" });
+            addBallToOver(inn, bowler, { label: `NB+${additionalRuns}`, chipClass: "ball-noball" });
             if (additionalRuns % 2 === 1) swapStrike(inn);
         } else if (type === "bye") {
             inn.totalRuns += additionalRuns;
@@ -343,7 +385,7 @@
             const striker = inn.batsmen[inn.strikerIndex];
             striker.balls += 1;
             bowler.runsThisOver += 0;
-            inn.thisOver.push({ label: `B${additionalRuns}`, chipClass: "ball-bye" });
+            addBallToOver(inn, bowler, { label: `B${additionalRuns}`, chipClass: "ball-bye" });
             if (additionalRuns % 2 === 1) swapStrike(inn);
             checkOverComplete(inn);
         } else if (type === "legbye") {
@@ -353,7 +395,7 @@
             const striker = inn.batsmen[inn.strikerIndex];
             striker.balls += 1;
             bowler.runsThisOver += 0;
-            inn.thisOver.push({ label: `LB${additionalRuns}`, chipClass: "ball-legbye" });
+            addBallToOver(inn, bowler, { label: `LB${additionalRuns}`, chipClass: "ball-legbye" });
             if (additionalRuns % 2 === 1) swapStrike(inn);
             checkOverComplete(inn);
         }
@@ -391,7 +433,7 @@
         }
         bowler.runsThisOver += 0;
 
-        inn.thisOver.push({ label: "W", chipClass: "ball-wicket" });
+        addBallToOver(inn, bowler, { label: "W", chipClass: "ball-wicket" });
 
         if (inn.totalWickets >= match.playersPerTeam - 1) {
             checkOverComplete(inn);
@@ -492,6 +534,12 @@
             bowler.ballsInOver = 0;
 
             if (bowler.runsThisOver === 0) bowler.maidens += 1;
+
+            inn.lastOver = [...inn.thisOver];
+            inn.lastOverRuns = bowler.runsThisOver;
+
+            bowler.overHistory.push({ balls: [...bowler.currentOverBalls], runs: bowler.runsThisOver });
+            bowler.currentOverBalls = [];
             bowler.runsThisOver = 0;
 
             inn.thisOver = [];
@@ -575,6 +623,8 @@
             nonStrikerIndex: inn.nonStrikerIndex,
             currentBowlerIndex: inn.currentBowlerIndex,
             thisOver: [...inn.thisOver],
+            lastOver: [...inn.lastOver],
+            lastOverRuns: inn.lastOverRuns,
             batsmen: inn.batsmen.map((b) => ({ ...b })),
             bowlers: inn.bowlers.map((b) => ({ ...b })),
         };
@@ -589,6 +639,8 @@
         inn.nonStrikerIndex = snap.nonStrikerIndex;
         inn.currentBowlerIndex = snap.currentBowlerIndex;
         inn.thisOver = [...snap.thisOver];
+        inn.lastOver = [...snap.lastOver];
+        inn.lastOverRuns = snap.lastOverRuns;
         inn.batsmen = snap.batsmen.map((b) => {
             const p = createPlayer(b.name);
             Object.assign(p, b);
@@ -613,6 +665,68 @@
         swapStrike(inn);
         updateDisplay();
     });
+
+    // ── Bowler Detail Modal ────────────────────────────────
+    $("bowler-name").parentElement.addEventListener("click", () => {
+        const inn = currentInnings();
+        if (inn.currentBowlerIndex < 0) return;
+        const bowler = inn.bowlers[inn.currentBowlerIndex];
+        showBowlerDetail(bowler);
+    });
+
+    $("close-bowler-detail").addEventListener("click", () => hideModal("bowler-detail-modal"));
+
+    function showBowlerDetail(bowler) {
+        $("bowler-detail-name").textContent = bowler.name;
+        $("bowler-detail-figures").textContent =
+            `${bowler.overs}.${bowler.ballsInOver} ov | ${bowler.maidens} maiden${bowler.maidens !== 1 ? "s" : ""} | ${bowler.runs} runs | ${bowler.wickets} wkt${bowler.wickets !== 1 ? "s" : ""} | Econ: ${bowler.economy()}`;
+
+        const container = $("bowler-over-history");
+        container.innerHTML = "";
+
+        if (bowler.overHistory.length === 0 && bowler.currentOverBalls.length === 0) {
+            container.innerHTML = '<p style="color:#78909c;text-align:center;font-size:13px;">No balls bowled yet</p>';
+            showModal("bowler-detail-modal");
+            return;
+        }
+
+        bowler.overHistory.forEach((ov, i) => {
+            container.appendChild(buildOverRow(`Over ${i + 1}`, ov.balls, ov.runs));
+        });
+
+        if (bowler.currentOverBalls.length > 0) {
+            container.appendChild(buildOverRow("Current", bowler.currentOverBalls, bowler.runsThisOver));
+        }
+
+        showModal("bowler-detail-modal");
+    }
+
+    function buildOverRow(label, balls, runs) {
+        const row = document.createElement("div");
+        row.className = "bowler-over-row";
+
+        const lbl = document.createElement("span");
+        lbl.className = "bowler-over-label";
+        lbl.textContent = label;
+        row.appendChild(lbl);
+
+        const ballsContainer = document.createElement("div");
+        ballsContainer.className = "bowler-over-balls";
+        balls.forEach((b) => {
+            const chip = document.createElement("span");
+            chip.className = "ball-chip " + b.chipClass;
+            chip.textContent = b.label;
+            ballsContainer.appendChild(chip);
+        });
+        row.appendChild(ballsContainer);
+
+        const runsSpan = document.createElement("span");
+        runsSpan.className = "bowler-over-runs";
+        runsSpan.textContent = `${runs}r`;
+        row.appendChild(runsSpan);
+
+        return row;
+    }
 
     // ── Scorecard Modal ────────────────────────────────────
     $("scorecard-btn").addEventListener("click", () => {
