@@ -1593,34 +1593,30 @@ body {
     animation: pulse-mic 1.2s infinite;
 }
 
-.btn-voice {
+.command-input-row {
     display: flex;
-    align-items: center;
-    justify-content: center;
     gap: 8px;
-    width: 100%;
-    padding: 12px;
-    border-radius: 12px;
-    border: 2px dashed #2a3a52;
-    background: #0d1b2e;
-    color: #78909c;
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
+    align-items: center;
 }
 
-.btn-voice:hover {
+.score-command-input {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid #2a3a52;
+    border-radius: 10px;
+    background: #132038;
+    color: #e0e0e0;
+    font-size: 14px;
+}
+
+.score-command-input::placeholder {
+    color: #546e7a;
+    font-size: 12px;
+}
+
+.score-command-input:focus {
+    outline: none;
     border-color: #4fc3f7;
-    color: #4fc3f7;
-}
-
-.btn-voice.listening {
-    border-color: #e53935;
-    border-style: solid;
-    background: rgba(229, 57, 53, 0.1);
-    color: #e53935;
-    animation: pulse-voice 1.2s infinite;
 }
 
 .voice-scoring-section {

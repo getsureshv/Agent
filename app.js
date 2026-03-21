@@ -2484,6 +2484,26 @@
         return "Unknown";
     }
 
+    // ── Text Command Input ───────────────────────────────
+    const scoreCommandInput = $("score-command-input");
+    if (scoreCommandInput) {
+        scoreCommandInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                const text = scoreCommandInput.value.trim();
+                if (!text) return;
+                const cmd = parseVoiceCommand(text);
+                if (cmd) {
+                    executeVoiceCommand(cmd);
+                    setVoiceStatus(scoreVoiceStatus, describeCommand(cmd), "success-text");
+                    scoreCommandInput.value = "";
+                } else {
+                    setVoiceStatus(scoreVoiceStatus, '"' + text + '" — not recognized. Try: four, wide, wicket caught, undo', "error-text");
+                }
+            }
+        });
+    }
+
+    // ── Voice Score Mic Button ─────────────────────────────
     if (voiceSupported && voiceScoreBtn) {
         let scoreRecog = null;
         let scoreListening = false;
@@ -2497,15 +2517,16 @@
             scoreRecog.onstart = () => {
                 scoreListening = true;
                 voiceScoreBtn.classList.add("listening");
-                voiceScoreBtn.querySelector("span").textContent = "Listening...";
                 setVoiceStatus(scoreVoiceStatus, 'Say: "four", "wide", "wicket bowled", "no ball", "undo"...', "listening-text");
             };
             scoreRecog.onresult = (e) => {
                 const transcript = e.results[0][0].transcript;
+                scoreCommandInput.value = transcript;
                 const cmd = parseVoiceCommand(transcript);
                 if (cmd) {
                     executeVoiceCommand(cmd);
                     setVoiceStatus(scoreVoiceStatus, 'Heard: "' + transcript + '" → ' + describeCommand(cmd), "success-text");
+                    setTimeout(() => { scoreCommandInput.value = ""; }, 1500);
                 } else {
                     setVoiceStatus(scoreVoiceStatus, 'Heard: "' + transcript + '" — could not understand command', "error-text");
                 }
@@ -2516,7 +2537,6 @@
             scoreRecog.onend = () => {
                 scoreListening = false;
                 voiceScoreBtn.classList.remove("listening");
-                voiceScoreBtn.querySelector("span").textContent = "Voice Score";
             };
             scoreRecog.start();
         });
