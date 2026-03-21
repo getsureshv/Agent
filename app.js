@@ -367,7 +367,7 @@
         } else if (type === "noball") {
             const total = 1 + additionalRuns;
             inn.totalRuns += total;
-            inn.extras.noBalls += 1;
+            inn.extras.noBalls += total;
             bowler.runs += total;
             bowler.runsThisOver += total;
             const striker = inn.batsmen[inn.strikerIndex];
@@ -626,7 +626,11 @@
             lastOver: [...inn.lastOver],
             lastOverRuns: inn.lastOverRuns,
             batsmen: inn.batsmen.map((b) => ({ ...b })),
-            bowlers: inn.bowlers.map((b) => ({ ...b })),
+            bowlers: inn.bowlers.map((b) => ({
+                ...b,
+                overHistory: b.overHistory.map((o) => ({ balls: [...o.balls], runs: o.runs })),
+                currentOverBalls: [...b.currentOverBalls],
+            })),
         };
     }
 
@@ -649,6 +653,8 @@
         inn.bowlers = snap.bowlers.map((b) => {
             const bw = createBowler(b.name);
             Object.assign(bw, b);
+            bw.overHistory = b.overHistory.map((o) => ({ balls: [...o.balls], runs: o.runs }));
+            bw.currentOverBalls = [...b.currentOverBalls];
             return bw;
         });
     }
@@ -667,7 +673,7 @@
     });
 
     // ── Bowler Detail Modal ────────────────────────────────
-    $("bowler-name").parentElement.addEventListener("click", () => {
+    $("bowler-panel").addEventListener("click", () => {
         const inn = currentInnings();
         if (inn.currentBowlerIndex < 0) return;
         const bowler = inn.bowlers[inn.currentBowlerIndex];
@@ -678,17 +684,30 @@
 
     function showBowlerDetail(bowler) {
         $("bowler-detail-name").textContent = bowler.name;
-        $("bowler-detail-figures").textContent =
-            `${bowler.overs}.${bowler.ballsInOver} ov | ${bowler.maidens} maiden${bowler.maidens !== 1 ? "s" : ""} | ${bowler.runs} runs | ${bowler.wickets} wkt${bowler.wickets !== 1 ? "s" : ""} | Econ: ${bowler.economy()}`;
+
+        const statsHtml = `
+            <div class="bowler-stats-grid">
+                <div class="bowler-stat"><span class="stat-value">${bowler.overs}.${bowler.ballsInOver}</span><span class="stat-label">Overs</span></div>
+                <div class="bowler-stat"><span class="stat-value">${bowler.maidens}</span><span class="stat-label">Maidens</span></div>
+                <div class="bowler-stat"><span class="stat-value">${bowler.runs}</span><span class="stat-label">Runs</span></div>
+                <div class="bowler-stat"><span class="stat-value">${bowler.wickets}</span><span class="stat-label">Wickets</span></div>
+                <div class="bowler-stat"><span class="stat-value">${bowler.economy()}</span><span class="stat-label">Economy</span></div>
+            </div>`;
+        $("bowler-detail-figures").innerHTML = statsHtml;
 
         const container = $("bowler-over-history");
         container.innerHTML = "";
 
         if (bowler.overHistory.length === 0 && bowler.currentOverBalls.length === 0) {
-            container.innerHTML = '<p style="color:#78909c;text-align:center;font-size:13px;">No balls bowled yet</p>';
+            container.innerHTML = '<p style="color:#78909c;text-align:center;font-size:13px;margin-top:12px;">No balls bowled yet</p>';
             showModal("bowler-detail-modal");
             return;
         }
+
+        const heading = document.createElement("div");
+        heading.className = "over-history-heading";
+        heading.textContent = "Over-by-Over Breakdown";
+        container.appendChild(heading);
 
         bowler.overHistory.forEach((ov, i) => {
             container.appendChild(buildOverRow(`Over ${i + 1}`, ov.balls, ov.runs));
