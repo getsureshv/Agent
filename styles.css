@@ -1555,6 +1555,113 @@ body {
     margin-bottom: 4px;
 }
 
+/* Voice Input */
+.chat-search-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.chat-search-row input {
+    flex: 1;
+}
+
+.voice-mic-btn {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    border-radius: 50%;
+    border: 1px solid #2a3a52;
+    background: #132038;
+    color: #78909c;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.voice-mic-btn:hover {
+    border-color: #4fc3f7;
+    color: #4fc3f7;
+}
+
+.voice-mic-btn.listening {
+    background: #e53935;
+    border-color: #e53935;
+    color: #fff;
+    animation: pulse-mic 1.2s infinite;
+}
+
+.btn-voice {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 12px;
+    border-radius: 12px;
+    border: 2px dashed #2a3a52;
+    background: #0d1b2e;
+    color: #78909c;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-voice:hover {
+    border-color: #4fc3f7;
+    color: #4fc3f7;
+}
+
+.btn-voice.listening {
+    border-color: #e53935;
+    border-style: solid;
+    background: rgba(229, 57, 53, 0.1);
+    color: #e53935;
+    animation: pulse-voice 1.2s infinite;
+}
+
+.voice-scoring-section {
+    margin-top: 12px;
+    text-align: center;
+}
+
+.voice-status {
+    font-size: 12px;
+    color: #78909c;
+    padding: 6px 0;
+    text-align: center;
+}
+
+.voice-status.hidden {
+    display: none;
+}
+
+.voice-status.listening-text {
+    color: #e53935;
+    font-weight: 600;
+}
+
+.voice-status.success-text {
+    color: #66bb6a;
+}
+
+.voice-status.error-text {
+    color: #ef5350;
+}
+
+@keyframes pulse-mic {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(229, 57, 53, 0.4); }
+    50% { box-shadow: 0 0 0 8px rgba(229, 57, 53, 0); }
+}
+
+@keyframes pulse-voice {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(229, 57, 53, 0.3); }
+    50% { box-shadow: 0 0 0 12px rgba(229, 57, 53, 0); }
+}
+
 /* Responsive */
 @media (max-width: 360px) {
     .btn-run {

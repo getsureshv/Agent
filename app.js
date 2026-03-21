@@ -2313,4 +2313,214 @@
         $("chat-topics").classList.add("hidden");
         $("chat-answer").classList.add("hidden");
     }
+    // ── Voice Input (Web Speech API) ─────────────────────
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const voiceSupported = !!SpeechRecognition;
+
+    function createRecognition() {
+        if (!voiceSupported) return null;
+        const r = new SpeechRecognition();
+        r.continuous = false;
+        r.interimResults = false;
+        r.lang = "en-US";
+        r.maxAlternatives = 3;
+        return r;
+    }
+
+    function setVoiceStatus(el, text, cls) {
+        el.textContent = text;
+        el.className = "voice-status " + (cls || "");
+        el.classList.remove("hidden");
+        if (cls !== "listening-text") {
+            setTimeout(() => el.classList.add("hidden"), 3000);
+        }
+    }
+
+    // ── Chat Voice Search ──────────────────────────────────
+    if (voiceSupported) {
+        let chatRecog = null;
+        let chatListening = false;
+        const chatVoiceBtn = $("chat-voice-btn");
+        const chatVoiceStatus = $("chat-voice-status");
+
+        chatVoiceBtn.addEventListener("click", () => {
+            if (chatListening) {
+                if (chatRecog) chatRecog.stop();
+                return;
+            }
+            chatRecog = createRecognition();
+            chatRecog.onstart = () => {
+                chatListening = true;
+                chatVoiceBtn.classList.add("listening");
+                setVoiceStatus(chatVoiceStatus, "Listening... speak your question", "listening-text");
+            };
+            chatRecog.onresult = (e) => {
+                const transcript = e.results[0][0].transcript;
+                $("chat-search-input").value = transcript;
+                setVoiceStatus(chatVoiceStatus, 'Heard: "' + transcript + '"', "success-text");
+                performSearch(transcript.trim().toLowerCase());
+            };
+            chatRecog.onerror = (e) => {
+                setVoiceStatus(chatVoiceStatus, "Voice error: " + e.error, "error-text");
+            };
+            chatRecog.onend = () => {
+                chatListening = false;
+                chatVoiceBtn.classList.remove("listening");
+            };
+            chatRecog.start();
+        });
+    } else {
+        $("chat-voice-btn").style.display = "none";
+    }
+
+    // ── Scoring Voice Commands ─────────────────────────────
+    const voiceScoreBtn = $("voice-score-btn");
+    const scoreVoiceStatus = $("score-voice-status");
+
+    // Map spoken words to scoring actions
+    const wordToNumber = {
+        zero: 0, oh: 0, dot: 0, "no run": 0, "no runs": 0, "dot ball": 0,
+        one: 1, single: 1, "a run": 1,
+        two: 2, double: 2, couple: 2,
+        three: 3, triple: 3,
+        four: 4, boundary: 4,
+        five: 5,
+        six: 6, sixer: 6, maximum: 6
+    };
+
+    function parseVoiceCommand(transcript) {
+        const t = transcript.toLowerCase().trim();
+
+        // Wicket commands
+        if (/\b(wicket|out|bowled)\b/.test(t)) {
+            if (/\bcaught\b/.test(t)) return { action: "wicket", type: "caught" };
+            if (/\blbw\b/.test(t)) return { action: "wicket", type: "lbw" };
+            if (/\brun\s*out\b/.test(t)) return { action: "wicket", type: "runout" };
+            if (/\bstump(ed)?\b/.test(t)) return { action: "wicket", type: "stumped" };
+            if (/\bhit\s*wicket\b/.test(t)) return { action: "wicket", type: "hitwicket" };
+            if (/\bretired\b/.test(t)) return { action: "wicket", type: "retired" };
+            if (/\bbowled\b/.test(t)) return { action: "wicket", type: "bowled" };
+            return { action: "wicket", type: "bowled" };
+        }
+
+        // Extras
+        if (/\bwide\b/.test(t)) {
+            const extra = extractExtraRuns(t);
+            return { action: "extra", type: "wide", additionalRuns: extra };
+        }
+        if (/\bno\s*ball\b/.test(t)) {
+            const extra = extractExtraRuns(t);
+            return { action: "extra", type: "noball", additionalRuns: extra };
+        }
+        if (/\bleg\s*bye\b/.test(t)) {
+            const extra = extractExtraRuns(t);
+            return { action: "extra", type: "legbye", additionalRuns: extra };
+        }
+        if (/\bbye\b/.test(t) && !/\bgood\s*bye\b/.test(t)) {
+            const extra = extractExtraRuns(t);
+            return { action: "extra", type: "bye", additionalRuns: extra };
+        }
+
+        // Undo
+        if (/\bundo\b/.test(t)) return { action: "undo" };
+
+        // Swap
+        if (/\bswap\b/.test(t)) return { action: "swap" };
+
+        // Runs — check word names first
+        for (const [word, num] of Object.entries(wordToNumber)) {
+            if (t.includes(word)) return { action: "runs", runs: num };
+        }
+
+        // Runs — check digit
+        const digitMatch = t.match(/\b([0-6])\b/);
+        if (digitMatch) return { action: "runs", runs: parseInt(digitMatch[1]) };
+
+        return null;
+    }
+
+    function extractExtraRuns(t) {
+        for (const [word, num] of Object.entries(wordToNumber)) {
+            if (word !== "dot" && word !== "dot ball" && t.includes(word)) return num;
+        }
+        const m = t.match(/\b([0-4])\b/);
+        return m ? parseInt(m[1]) : 0;
+    }
+
+    function executeVoiceCommand(cmd) {
+        if (!cmd) return false;
+        switch (cmd.action) {
+            case "runs":
+                scoreRuns(cmd.runs);
+                return true;
+            case "extra":
+                processExtra(cmd.type, cmd.additionalRuns);
+                return true;
+            case "wicket":
+                processWicket(cmd.type);
+                return true;
+            case "undo":
+                $("undo-btn").click();
+                return true;
+            case "swap":
+                $("swap-btn").click();
+                return true;
+        }
+        return false;
+    }
+
+    function describeCommand(cmd) {
+        if (!cmd) return "Not understood";
+        switch (cmd.action) {
+            case "runs": return cmd.runs + (cmd.runs === 1 ? " run" : " runs");
+            case "extra": {
+                const names = { wide: "Wide", noball: "No Ball", bye: "Bye", legbye: "Leg Bye" };
+                return (names[cmd.type] || cmd.type) + (cmd.additionalRuns ? " + " + cmd.additionalRuns : "");
+            }
+            case "wicket": return "Wicket — " + cmd.type;
+            case "undo": return "Undo";
+            case "swap": return "Swap Batsmen";
+        }
+        return "Unknown";
+    }
+
+    if (voiceSupported && voiceScoreBtn) {
+        let scoreRecog = null;
+        let scoreListening = false;
+
+        voiceScoreBtn.addEventListener("click", () => {
+            if (scoreListening) {
+                if (scoreRecog) scoreRecog.stop();
+                return;
+            }
+            scoreRecog = createRecognition();
+            scoreRecog.onstart = () => {
+                scoreListening = true;
+                voiceScoreBtn.classList.add("listening");
+                voiceScoreBtn.querySelector("span").textContent = "Listening...";
+                setVoiceStatus(scoreVoiceStatus, 'Say: "four", "wide", "wicket bowled", "no ball", "undo"...', "listening-text");
+            };
+            scoreRecog.onresult = (e) => {
+                const transcript = e.results[0][0].transcript;
+                const cmd = parseVoiceCommand(transcript);
+                if (cmd) {
+                    executeVoiceCommand(cmd);
+                    setVoiceStatus(scoreVoiceStatus, 'Heard: "' + transcript + '" → ' + describeCommand(cmd), "success-text");
+                } else {
+                    setVoiceStatus(scoreVoiceStatus, 'Heard: "' + transcript + '" — could not understand command', "error-text");
+                }
+            };
+            scoreRecog.onerror = (e) => {
+                setVoiceStatus(scoreVoiceStatus, "Voice error: " + e.error, "error-text");
+            };
+            scoreRecog.onend = () => {
+                scoreListening = false;
+                voiceScoreBtn.classList.remove("listening");
+                voiceScoreBtn.querySelector("span").textContent = "Voice Score";
+            };
+            scoreRecog.start();
+        });
+    } else if (voiceScoreBtn) {
+        voiceScoreBtn.style.display = "none";
+    }
 })();
