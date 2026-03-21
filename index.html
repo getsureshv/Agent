@@ -177,30 +177,30 @@
             <!-- Batsmen Info -->
             <div class="batsmen-panel">
                 <div class="batsman-row" id="striker-row">
-                    <div class="batsman-info">
+                    <div class="batsman-info" id="striker-info-tap">
                         <span class="batsman-name" id="striker-name">Batsman 1</span>
                         <span class="batsman-indicator">*</span>
                         <span class="batsman-score" id="striker-score">0 (0)</span>
                     </div>
-                    <span class="batsman-tap-hint">Details &#9656;</span>
+                    <span class="batsman-tap-hint" id="striker-change-btn" title="Change striker">Change &#9656;</span>
                 </div>
                 <div class="batsman-row" id="non-striker-row">
-                    <div class="batsman-info">
+                    <div class="batsman-info" id="non-striker-info-tap">
                         <span class="batsman-name" id="non-striker-name">Batsman 2</span>
                         <span class="batsman-score" id="non-striker-score">0 (0)</span>
                     </div>
-                    <span class="batsman-tap-hint">Details &#9656;</span>
+                    <span class="batsman-tap-hint" id="non-striker-change-btn" title="Change non-striker">Change &#9656;</span>
                 </div>
             </div>
 
-            <!-- Bowler Info (tap for details) -->
+            <!-- Bowler Info (tap for details / change) -->
             <div class="bowler-panel" id="bowler-panel">
-                <div class="bowler-panel-left">
+                <div class="bowler-panel-left" id="bowler-info-tap">
                     <span class="bowler-label">Bowling:</span>
                     <span id="bowler-name">Bowler 1</span>
                     <span id="bowler-figures">0-0-0-0</span>
                 </div>
-                <span class="bowler-tap-hint">Details &#9656;</span>
+                <span class="bowler-tap-hint" id="bowler-change-btn" title="Change bowler">Change &#9656;</span>
             </div>
 
             <!-- Extras Display -->
@@ -331,6 +331,26 @@
             <div class="modal-content">
                 <h2>Select New Batsman</h2>
                 <div id="batsman-list" class="player-list"></div>
+            </div>
+        </div>
+
+        <!-- Change Bowler Modal (tap to change mid-match) -->
+        <div id="change-bowler-modal" class="modal hidden">
+            <div class="modal-content">
+                <button class="modal-close" id="close-change-bowler">&times;</button>
+                <h2>Change Bowler</h2>
+                <div id="change-bowler-current" class="change-current-player"></div>
+                <div id="change-bowler-list" class="player-list"></div>
+            </div>
+        </div>
+
+        <!-- Change Batsman Modal (tap to change mid-match) -->
+        <div id="change-batsman-modal" class="modal hidden">
+            <div class="modal-content">
+                <button class="modal-close" id="close-change-batsman">&times;</button>
+                <h2 id="change-batsman-title">Change Batsman</h2>
+                <div id="change-batsman-current" class="change-current-player"></div>
+                <div id="change-batsman-list" class="player-list"></div>
             </div>
         </div>
 

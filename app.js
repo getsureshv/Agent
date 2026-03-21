@@ -850,15 +850,71 @@
     });
 
     // ── Batsman Detail Modal ─────────────────────────────
-    $("striker-row").addEventListener("click", () => {
+    $("striker-info-tap").addEventListener("click", (e) => {
+        e.stopPropagation();
         const inn = currentInnings();
         showBatsmanDetail(inn.batsmen[inn.strikerIndex]);
     });
 
-    $("non-striker-row").addEventListener("click", () => {
+    $("non-striker-info-tap").addEventListener("click", (e) => {
+        e.stopPropagation();
         const inn = currentInnings();
         showBatsmanDetail(inn.batsmen[inn.nonStrikerIndex]);
     });
+
+    // ── Change Batsman (tap Change button) ─────────────
+    $("striker-change-btn").addEventListener("click", (e) => {
+        e.stopPropagation();
+        showChangeBatsman("striker");
+    });
+
+    $("non-striker-change-btn").addEventListener("click", (e) => {
+        e.stopPropagation();
+        showChangeBatsman("non-striker");
+    });
+
+    function showChangeBatsman(role) {
+        const inn = currentInnings();
+        const isStriker = role === "striker";
+        const currentIdx = isStriker ? inn.strikerIndex : inn.nonStrikerIndex;
+        const otherIdx = isStriker ? inn.nonStrikerIndex : inn.strikerIndex;
+        const currentBatsman = inn.batsmen[currentIdx];
+
+        $("change-batsman-title").textContent = isStriker ? "Change Striker" : "Change Non-Striker";
+        $("change-batsman-current").innerHTML =
+            `<div class="current-player-tag">Current: <strong>${currentBatsman.name}</strong> — ${currentBatsman.runs} (${currentBatsman.balls})</div>`;
+
+        const list = $("change-batsman-list");
+        list.innerHTML = "";
+
+        let hasOptions = false;
+        inn.batsmen.forEach((b, i) => {
+            if (i === currentIdx || i === otherIdx || b.isOut) return;
+            hasOptions = true;
+            const btn = document.createElement("button");
+            btn.className = "btn btn-secondary";
+            btn.textContent = b.name;
+            btn.addEventListener("click", () => {
+                if (isStriker) {
+                    inn.strikerIndex = i;
+                } else {
+                    inn.nonStrikerIndex = i;
+                }
+                hideModal("change-batsman-modal");
+                updateDisplay();
+                saveMatchState();
+            });
+            list.appendChild(btn);
+        });
+
+        if (!hasOptions) {
+            list.innerHTML = '<p style="color:#78909c;text-align:center;font-size:13px;">No other batsmen available</p>';
+        }
+
+        showModal("change-batsman-modal");
+    }
+
+    $("close-change-batsman").addEventListener("click", () => hideModal("change-batsman-modal"));
 
     $("close-batsman-detail").addEventListener("click", () => hideModal("batsman-detail-modal"));
 
@@ -905,12 +961,62 @@
     }
 
     // ── Bowler Detail Modal ────────────────────────────────
-    $("bowler-panel").addEventListener("click", () => {
+    $("bowler-info-tap").addEventListener("click", (e) => {
+        e.stopPropagation();
         const inn = currentInnings();
         if (inn.currentBowlerIndex < 0) return;
         const bowler = inn.bowlers[inn.currentBowlerIndex];
         showBowlerDetail(bowler);
     });
+
+    // ── Change Bowler (tap Change button) ────────────────
+    $("bowler-change-btn").addEventListener("click", (e) => {
+        e.stopPropagation();
+        showChangeBowler();
+    });
+
+    function showChangeBowler() {
+        const inn = currentInnings();
+        const currentBowler = inn.currentBowlerIndex >= 0 ? inn.bowlers[inn.currentBowlerIndex] : null;
+
+        if (currentBowler) {
+            $("change-bowler-current").innerHTML =
+                `<div class="current-player-tag">Current: <strong>${currentBowler.name}</strong> — ${currentBowler.figures()}</div>`;
+        } else {
+            $("change-bowler-current").innerHTML = "";
+        }
+
+        const list = $("change-bowler-list");
+        list.innerHTML = "";
+
+        inn.bowlingNames.forEach((name) => {
+            if (currentBowler && name === currentBowler.name) return;
+            const btn = document.createElement("button");
+            btn.className = "btn btn-secondary";
+            btn.textContent = name;
+
+            // Show figures if this bowler has bowled before
+            const existingBowler = inn.bowlers.find((b) => b.name === name);
+            if (existingBowler) {
+                const fig = document.createElement("span");
+                fig.className = "change-bowler-figures";
+                fig.textContent = existingBowler.figures();
+                btn.appendChild(fig);
+            }
+
+            btn.addEventListener("click", () => {
+                selectBowler(inn, name);
+                hideModal("change-bowler-modal");
+                updateDisplay();
+                saveMatchState();
+            });
+            list.appendChild(btn);
+        });
+
+        showModal("change-bowler-modal");
+    }
+
+    $("close-change-bowler").addEventListener("click", () => hideModal("change-bowler-modal"));
 
     $("close-bowler-detail").addEventListener("click", () => hideModal("bowler-detail-modal"));
 

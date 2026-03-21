@@ -254,6 +254,8 @@ body {
     display: flex;
     align-items: center;
     gap: 6px;
+    cursor: pointer;
+    flex: 1;
 }
 
 .batsman-tap-hint {
@@ -263,6 +265,14 @@ body {
     padding: 4px 10px;
     border-radius: 12px;
     font-weight: 600;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s;
+}
+
+.batsman-tap-hint:active {
+    background: #4fc3f7;
+    color: #0a1628;
 }
 
 .batsman-name {
@@ -293,19 +303,15 @@ body {
     justify-content: space-between;
     align-items: center;
     font-size: 14px;
-    cursor: pointer;
     -webkit-tap-highlight-color: transparent;
-    transition: background 0.15s;
-}
-
-.bowler-panel:active {
-    background: #1e3250;
 }
 
 .bowler-panel-left {
     display: flex;
     gap: 8px;
     align-items: center;
+    cursor: pointer;
+    flex: 1;
 }
 
 .bowler-tap-hint {
@@ -315,6 +321,14 @@ body {
     padding: 4px 10px;
     border-radius: 12px;
     font-weight: 600;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s;
+}
+
+.bowler-tap-hint:active {
+    background: #4fc3f7;
+    color: #0a1628;
 }
 
 .bowler-label {
@@ -1656,6 +1670,32 @@ body {
 @keyframes pulse-voice {
     0%, 100% { box-shadow: 0 0 0 0 rgba(229, 57, 53, 0.3); }
     50% { box-shadow: 0 0 0 12px rgba(229, 57, 53, 0); }
+}
+
+/* Change Player Modals */
+.change-current-player {
+    margin-bottom: 12px;
+}
+
+.current-player-tag {
+    background: #1e3250;
+    color: #b0bec5;
+    padding: 8px 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    border-left: 3px solid #4fc3f7;
+}
+
+.current-player-tag strong {
+    color: #e0e0e0;
+}
+
+.change-bowler-figures {
+    display: inline-block;
+    margin-left: 8px;
+    font-size: 12px;
+    color: #78909c;
+    font-weight: 400;
 }
 
 /* Responsive */
