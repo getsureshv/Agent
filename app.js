@@ -237,6 +237,7 @@
     });
 
     function scoreRuns(runs) {
+        if (isNaN(runs)) return;
         const inn = currentInnings();
         const striker = inn.batsmen[inn.strikerIndex];
         const bowler = inn.bowlers[inn.currentBowlerIndex];
@@ -306,6 +307,7 @@
     $("cancel-extras").addEventListener("click", () => hideModal("extras-modal"));
 
     function processExtra(type, additionalRuns) {
+        if (isNaN(additionalRuns)) return;
         const inn = currentInnings();
         const bowler = inn.bowlers[inn.currentBowlerIndex];
 
