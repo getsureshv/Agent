@@ -2510,7 +2510,7 @@
         if (/\b(scorecard|score\s*card|score\s*board|scoreboard|show\s*score|view\s*score)\b/.test(t)) return { action: "scorecard" };
 
         // Wicket commands — improved recognition
-        if (/\b(wicket|out|bowled|dismiss(ed)?|gone|got\s*him)\b/.test(t)) {
+        if (/\b(wicket|wicked|out|bowled|dismiss(ed)?|gone|got\s*him)\b/.test(t)) {
             if (/\bcaught\b/.test(t) || /\bcatch\b/.test(t)) return { action: "wicket", type: "caught" };
             if (/\blbw\b/.test(t) || /\bleg\s*before\b/.test(t)) return { action: "wicket", type: "lbw" };
             if (/\brun\s*out\b/.test(t)) return { action: "wicket", type: "runout" };
