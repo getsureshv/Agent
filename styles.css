@@ -1424,6 +1424,80 @@ body {
     flex: 1;
 }
 
+.chat-search {
+    margin-bottom: 12px;
+}
+
+.chat-search input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #2a3a52;
+    border-radius: 10px;
+    background: #132038;
+    color: #e0e0e0;
+    font-size: 14px;
+}
+
+.chat-search input::placeholder {
+    color: #546e7a;
+}
+
+.chat-search input:focus {
+    outline: none;
+    border-color: #4fc3f7;
+}
+
+.chat-search-results {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.chat-search-results.hidden {
+    display: none !important;
+}
+
+.chat-search-result-card {
+    background: #132038;
+    border: 1px solid #1e3250;
+    border-radius: 10px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+}
+
+.chat-search-result-card:active {
+    border-color: #4fc3f7;
+}
+
+.chat-search-result-title {
+    color: #4fc3f7;
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.chat-search-result-snippet {
+    color: #b0bec5;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.chat-search-result-snippet mark {
+    background: rgba(79, 195, 247, 0.25);
+    color: #e0e0e0;
+    border-radius: 2px;
+    padding: 0 2px;
+}
+
+.chat-no-results {
+    color: #78909c;
+    font-size: 13px;
+    text-align: center;
+    padding: 12px 0;
+}
+
 .chat-welcome {
     color: #78909c;
     font-size: 13px;

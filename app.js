@@ -1955,16 +1955,148 @@
     document.querySelectorAll(".chat-topic-btn").forEach(btn => {
         btn.addEventListener("click", () => {
             const topic = btn.dataset.topic;
-            const rule = cricketRules[topic];
-            if (!rule) return;
-            $("chat-topics").classList.add("hidden");
-            $("chat-answer").classList.remove("hidden");
-            $("chat-answer-content").innerHTML = rule.content;
+            showRuleTopic(topic);
         });
     });
 
+    function showRuleTopic(topic) {
+        const rule = cricketRules[topic];
+        if (!rule) return;
+        $("chat-search-results").classList.add("hidden");
+        $("chat-topics").classList.add("hidden");
+        $("chat-answer").classList.remove("hidden");
+        $("chat-answer-content").innerHTML = rule.content;
+    }
+
     $("chat-back-btn").addEventListener("click", () => {
         $("chat-answer").classList.add("hidden");
+        $("chat-search-results").classList.add("hidden");
         $("chat-topics").classList.remove("hidden");
+        $("chat-search-input").value = "";
     });
+
+    // ── Chat Search ─────────────────────────────────────────
+    // Build a flat searchable index from all rules
+    function buildSearchIndex() {
+        const index = [];
+        Object.entries(cricketRules).forEach(([key, rule]) => {
+            // Strip HTML tags to get plain text for searching
+            const plain = rule.content.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+            // Split into sentences/chunks for snippet extraction
+            const sentences = plain.split(/(?<=[.!?])\s+|(?<=<\/li>)\s*/);
+            index.push({ key, title: rule.title, plain, sentences });
+        });
+        return index;
+    }
+
+    const searchIndex = buildSearchIndex();
+
+    $("chat-search-input").addEventListener("input", debounce(function () {
+        const query = $("chat-search-input").value.trim().toLowerCase();
+        if (query.length < 2) {
+            $("chat-search-results").classList.add("hidden");
+            $("chat-topics").classList.remove("hidden");
+            $("chat-answer").classList.add("hidden");
+            return;
+        }
+        performSearch(query);
+    }, 250));
+
+    $("chat-search-input").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+            const query = $("chat-search-input").value.trim().toLowerCase();
+            if (query.length >= 2) performSearch(query);
+        }
+    });
+
+    function debounce(fn, ms) {
+        let timer;
+        return function () {
+            clearTimeout(timer);
+            timer = setTimeout(() => fn.apply(this, arguments), ms);
+        };
+    }
+
+    function performSearch(query) {
+        const results = [];
+        const words = query.split(/\s+/).filter(w => w.length > 1);
+
+        searchIndex.forEach(entry => {
+            const lowerPlain = entry.plain.toLowerCase();
+            // Score: count how many query words appear
+            let score = 0;
+            let matched = false;
+            words.forEach(w => {
+                if (lowerPlain.includes(w)) { score++; matched = true; }
+            });
+            // Boost if full phrase matches
+            if (lowerPlain.includes(query)) score += 5;
+            // Boost title matches
+            if (entry.title.toLowerCase().includes(query)) score += 3;
+
+            if (matched) {
+                // Extract best snippet around first match
+                const snippet = extractSnippet(entry.plain, words, 120);
+                results.push({ key: entry.key, title: entry.title, score, snippet });
+            }
+        });
+
+        // Sort by score descending
+        results.sort((a, b) => b.score - a.score);
+
+        renderSearchResults(results, words);
+    }
+
+    function extractSnippet(text, words, maxLen) {
+        const lower = text.toLowerCase();
+        // Find the earliest match position
+        let earliest = text.length;
+        words.forEach(w => {
+            const idx = lower.indexOf(w);
+            if (idx >= 0 && idx < earliest) earliest = idx;
+        });
+        // Window around the match
+        let start = Math.max(0, earliest - 30);
+        let end = Math.min(text.length, start + maxLen);
+        let snippet = text.substring(start, end);
+        if (start > 0) snippet = "..." + snippet;
+        if (end < text.length) snippet += "...";
+        return snippet;
+    }
+
+    function highlightWords(text, words) {
+        let result = text;
+        words.forEach(w => {
+            const regex = new RegExp("(" + w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")", "gi");
+            result = result.replace(regex, "<mark>$1</mark>");
+        });
+        return result;
+    }
+
+    function renderSearchResults(results, words) {
+        const container = $("chat-search-results");
+        container.innerHTML = "";
+
+        if (results.length === 0) {
+            container.innerHTML = '<div class="chat-no-results">No matching rules found. Try different keywords.</div>';
+            container.classList.remove("hidden");
+            $("chat-topics").classList.add("hidden");
+            $("chat-answer").classList.add("hidden");
+            return;
+        }
+
+        results.forEach(r => {
+            const card = document.createElement("div");
+            card.className = "chat-search-result-card";
+            card.innerHTML = `<div class="chat-search-result-title">${r.title}</div><div class="chat-search-result-snippet">${highlightWords(r.snippet, words)}</div>`;
+            card.addEventListener("click", () => {
+                showRuleTopic(r.key);
+            });
+            container.appendChild(card);
+        });
+
+        container.classList.remove("hidden");
+        $("chat-topics").classList.add("hidden");
+        $("chat-answer").classList.add("hidden");
+    }
 })();
