@@ -235,6 +235,12 @@ body {
     transition: background 0.15s, border-color 0.15s;
 }
 
+.batsman-row.on-strike {
+    border-color: #4fc3f7;
+    background: rgba(79, 195, 247, 0.08);
+    box-shadow: 0 0 0 1px rgba(79, 195, 247, 0.25);
+}
+
 .batsman-row:last-child {
     margin-bottom: 0;
 }
@@ -1145,6 +1151,62 @@ body {
 
 .pt-nrr {
     font-size: 12px;
+    color: #78909c;
+}
+
+/* Squad Selection Modal */
+.modal-content-tall {
+    max-height: 85vh;
+}
+
+.squad-select-subtitle {
+    text-align: center;
+    color: #78909c;
+    font-size: 13px;
+    margin-bottom: 16px;
+}
+
+.squad-select-team-section {
+    margin-bottom: 16px;
+}
+
+.squad-select-team-section h3 {
+    color: #90caf9;
+    font-size: 15px;
+    margin-bottom: 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #2a3a52;
+}
+
+.squad-select-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.squad-player-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #e0e0e0;
+    transition: background 0.15s;
+}
+
+.squad-player-label:hover {
+    background: #1e3250;
+}
+
+.squad-player-label input[type="checkbox"] {
+    accent-color: #4fc3f7;
+    width: 18px;
+    height: 18px;
+}
+
+.squad-player-label input[type="checkbox"]:not(:checked) + span {
     color: #78909c;
 }
 

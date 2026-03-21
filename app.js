@@ -228,6 +228,10 @@
         $("non-striker-name").textContent = nonStriker.name;
         $("non-striker-score").textContent = `${nonStriker.runs} (${nonStriker.balls})`;
 
+        // Highlight on-strike batsman
+        $("striker-row").classList.add("on-strike");
+        $("non-striker-row").classList.remove("on-strike");
+
         if (bowler) {
             $("bowler-name").textContent = bowler.name;
             $("bowler-figures").textContent = bowler.figures();
@@ -1019,6 +1023,7 @@
             format: $("tournament-format").value,
             overs: parseInt($("tournament-overs").value) || 10,
             playersPerTeam: parseInt($("tournament-players").value) || 11,
+            squadSize: parseInt($("tournament-squad-size").value) || 15,
             teams: [],
             fixtures: [],
         };
@@ -1040,7 +1045,8 @@
         if (!name) return;
         if (tournament.teams.some(t => t.name === name)) { inp.value = ""; return; }
         const players = [];
-        for (let i = 0; i < tournament.playersPerTeam; i++) {
+        const size = tournament.squadSize || tournament.playersPerTeam;
+        for (let i = 0; i < size; i++) {
             players.push(`${name} Player ${i + 1}`);
         }
         tournament.teams.push({ name, players });
@@ -1084,10 +1090,11 @@
     }
 
     function openTeamPlayersScreen(team) {
-        $("team-players-heading").textContent = team.name + " - Players";
+        $("team-players-heading").textContent = team.name + " - Squad";
         const container = $("team-players-inputs");
         container.innerHTML = "";
-        for (let i = 0; i < tournament.playersPerTeam; i++) {
+        const size = tournament.squadSize || tournament.playersPerTeam;
+        for (let i = 0; i < size; i++) {
             const row = document.createElement("div");
             row.className = "player-input-row";
             row.innerHTML = `<span>${i + 1}.</span><input type="text" placeholder="${team.name} Player ${i + 1}" value="${team.players[i] || ""}">`;
@@ -1335,7 +1342,89 @@
         const fixture = tournament.fixtures[fixtureIndex];
         const team1Data = tournament.teams.find(t => t.name === fixture.team1);
         const team2Data = tournament.teams.find(t => t.name === fixture.team2);
+        const squadSize = tournament.squadSize || tournament.playersPerTeam;
+        const playingXI = tournament.playersPerTeam;
 
+        // If squad is larger than playing XI, show selection modal
+        if (squadSize > playingXI && team1Data && team2Data) {
+            showSquadSelectionModal(fixture, team1Data, team2Data, playingXI);
+        } else {
+            proceedToMatchSetup(fixture, team1Data, team2Data);
+        }
+    }
+
+    function showSquadSelectionModal(fixture, team1Data, team2Data, playingXI) {
+        $("squad-select-subtitle").textContent = `Pick ${playingXI} players per team`;
+        $("squad-select-team1-heading").textContent = team1Data.name;
+        $("squad-select-team2-heading").textContent = team2Data.name;
+
+        buildSquadCheckboxes("squad-select-team1", team1Data.players, playingXI);
+        buildSquadCheckboxes("squad-select-team2", team2Data.players, playingXI);
+
+        updateConfirmSquadBtn(playingXI);
+        showModal("squad-select-modal");
+    }
+
+    function buildSquadCheckboxes(containerId, players, maxSelect) {
+        const container = $(containerId);
+        container.innerHTML = "";
+        players.forEach((name, i) => {
+            const label = document.createElement("label");
+            label.className = "squad-player-label";
+            const cb = document.createElement("input");
+            cb.type = "checkbox";
+            cb.checked = i < maxSelect; // pre-select first XI
+            cb.dataset.index = i;
+            cb.addEventListener("change", () => {
+                const checked = container.querySelectorAll("input:checked").length;
+                if (checked > maxSelect) {
+                    cb.checked = false;
+                    return;
+                }
+                updateConfirmSquadBtn(maxSelect);
+            });
+            label.appendChild(cb);
+            const span = document.createElement("span");
+            span.textContent = name;
+            label.appendChild(span);
+            container.appendChild(label);
+        });
+    }
+
+    function updateConfirmSquadBtn(playingXI) {
+        const t1Count = $("squad-select-team1").querySelectorAll("input:checked").length;
+        const t2Count = $("squad-select-team2").querySelectorAll("input:checked").length;
+        const btn = $("confirm-squad-btn");
+        btn.disabled = t1Count !== playingXI || t2Count !== playingXI;
+        btn.textContent = `Confirm (${t1Count} / ${t2Count})`;
+    }
+
+    $("confirm-squad-btn").addEventListener("click", () => {
+        const fixture = tournament.fixtures[currentFixtureIndex];
+        const team1Data = tournament.teams.find(t => t.name === fixture.team1);
+        const team2Data = tournament.teams.find(t => t.name === fixture.team2);
+
+        const t1Selected = getSelectedSquadPlayers("squad-select-team1", team1Data.players);
+        const t2Selected = getSelectedSquadPlayers("squad-select-team2", team2Data.players);
+
+        hideModal("squad-select-modal");
+        proceedToMatchSetup(fixture, { name: team1Data.name, players: t1Selected }, { name: team2Data.name, players: t2Selected });
+    });
+
+    $("cancel-squad-btn").addEventListener("click", () => {
+        hideModal("squad-select-modal");
+    });
+
+    function getSelectedSquadPlayers(containerId, allPlayers) {
+        const checkboxes = $(containerId).querySelectorAll("input");
+        const selected = [];
+        checkboxes.forEach((cb, i) => {
+            if (cb.checked) selected.push(allPlayers[i]);
+        });
+        return selected;
+    }
+
+    function proceedToMatchSetup(fixture, team1Data, team2Data) {
         // Pre-fill setup screen
         $("team1-name").value = fixture.team1;
         $("team2-name").value = fixture.team2;
@@ -1348,9 +1437,9 @@
         updateTossLabels();
         showScreen("setup-screen");
 
-        // Store team player data so player entry screen can use it
-        tournament._pendingTeam1Players = team1Data ? team1Data.players : null;
-        tournament._pendingTeam2Players = team2Data ? team2Data.players : null;
+        // Store selected playing XI for player entry screen
+        tournament._pendingTeam1Players = team1Data ? team1Data.players.slice(0, tournament.playersPerTeam) : null;
+        tournament._pendingTeam2Players = team2Data ? team2Data.players.slice(0, tournament.playersPerTeam) : null;
     }
 
     $("back-to-tournament-btn").addEventListener("click", () => {

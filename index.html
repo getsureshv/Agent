@@ -41,8 +41,12 @@
                     <input type="number" id="tournament-overs" min="1" max="50" value="10">
                 </div>
                 <div class="form-group">
-                    <label for="tournament-players">Players per Team</label>
+                    <label for="tournament-players">Playing XI (per match)</label>
                     <input type="number" id="tournament-players" min="2" max="11" value="11">
+                </div>
+                <div class="form-group">
+                    <label for="tournament-squad-size">Squad Size (max roster)</label>
+                    <input type="number" id="tournament-squad-size" min="2" max="15" value="15">
                 </div>
                 <div class="home-actions">
                     <button class="btn btn-secondary btn-large" id="back-to-home-btn">Back</button>
@@ -333,6 +337,24 @@
                 <h2 id="bowler-detail-name">Bowler</h2>
                 <div id="bowler-detail-figures" class="bowler-detail-summary"></div>
                 <div id="bowler-over-history"></div>
+            </div>
+        </div>
+
+        <!-- Squad Selection Modal (pick playing XI from squad) -->
+        <div id="squad-select-modal" class="modal hidden">
+            <div class="modal-content modal-content-tall">
+                <h2>Select Playing XI</h2>
+                <p class="squad-select-subtitle" id="squad-select-subtitle">Pick 11 players</p>
+                <div class="squad-select-team-section">
+                    <h3 id="squad-select-team1-heading">Team 1</h3>
+                    <div id="squad-select-team1" class="squad-select-list"></div>
+                </div>
+                <div class="squad-select-team-section">
+                    <h3 id="squad-select-team2-heading">Team 2</h3>
+                    <div id="squad-select-team2" class="squad-select-list"></div>
+                </div>
+                <button class="btn btn-primary btn-large" id="confirm-squad-btn">Confirm Squads</button>
+                <button class="btn btn-secondary" id="cancel-squad-btn" style="margin-top:8px;width:100%;">Cancel</button>
             </div>
         </div>
 
