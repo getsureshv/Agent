@@ -2486,31 +2486,65 @@
     // Map spoken words to scoring actions
     const wordToNumber = {
         zero: 0, oh: 0, dot: 0, "no run": 0, "no runs": 0, "dot ball": 0, nought: 0, nothing: 0,
-        one: 1, single: 1, "a run": 1, "one run": 1, won: 1,
-        two: 2, double: 2, couple: 2, "two runs": 2, too: 2, to: 2,
-        three: 3, triple: 3, "three runs": 3, tree: 3,
-        four: 4, boundary: 4, "four runs": 4, for: 4,
+        one: 1, single: 1, "a run": 1, "one run": 1,
+        two: 2, double: 2, couple: 2, "two runs": 2,
+        three: 3, triple: 3, "three runs": 3,
+        four: 4, boundary: 4, "four runs": 4,
         five: 5, "five runs": 5,
         six: 6, sixer: 6, maximum: 6, "six runs": 6, "over the fence": 6, "out of the park": 6
     };
 
+    // Normalize common speech-to-text mishearings of cricket terms
+    function normalizeTranscript(raw) {
+        return raw
+            // Wicket/dismissal terms
+            .replace(/\bwicked\b/g, "wicket")
+            .replace(/\bcourt\b/g, "caught")
+            .replace(/\bcot\b/g, "caught")
+            .replace(/\bcut\b/g, "caught")
+            .replace(/\bcaught it\b/g, "caught")
+            .replace(/\bbold\b/g, "bowled")
+            .replace(/\bbolt\b/g, "bowled")
+            .replace(/\bbow?led?\b/g, "bowled")
+            .replace(/\bstomped\b/g, "stumped")
+            .replace(/\bstumps\b/g, "stumped")
+            .replace(/\brun now\b/g, "run out")
+            .replace(/\bran out\b/g, "run out")
+            // Extras
+            .replace(/\bwild\b/g, "wide")
+            .replace(/\bwhy\b/g, "wide")
+            .replace(/\bnoble\b/g, "no ball")
+            .replace(/\bno bull\b/g, "no ball")
+            .replace(/\bleg buy\b/g, "leg bye")
+            // Runs — only standalone homophones
+            .replace(/\bwon\b/g, "one")
+            .replace(/\btoo\b/g, "two")
+            .replace(/\btree\b/g, "three")
+            .replace(/\bfor\b/g, "four")
+            .replace(/\bsex\b/g, "six")
+            .replace(/\bsick\b/g, "six")
+            // Misc
+            .replace(/\band do\b/g, "undo")
+            .replace(/\bswat\b/g, "swap");
+    }
+
     function parseVoiceCommand(transcript) {
-        const t = transcript.toLowerCase().trim()
+        const t = normalizeTranscript(transcript.toLowerCase().trim())
             .replace(/[.,!?;:'"]+/g, "")   // strip punctuation
             .replace(/\s+/g, " ");           // normalize whitespace
 
         // Change bowler commands
-        if (/\b(change|switch|new)\s*(the\s+)?bowler\b/.test(t)) return { action: "change_bowler" };
+        if (/\b(change|switch|new)\s*(the\s+|to\s+|a\s+)?bowler\b/.test(t)) return { action: "change_bowler" };
 
         // Change batsman / striker / non-striker commands
-        if (/\b(change|switch|new|replace)\s*(the\s+)?(striker|batsman|batter|batman)\b/.test(t)) return { action: "change_striker" };
-        if (/\b(change|switch|new|replace)\s*(the\s+)?non[- ]?striker\b/.test(t)) return { action: "change_non_striker" };
+        if (/\b(change|switch|new|replace)\s*(the\s+|to\s+|a\s+)?(striker|batsman|batter|batman)\b/.test(t)) return { action: "change_striker" };
+        if (/\b(change|switch|new|replace)\s*(the\s+|to\s+|a\s+)?non[- ]?striker\b/.test(t)) return { action: "change_non_striker" };
 
         // Scorecard
         if (/\b(scorecard|score\s*card|score\s*board|scoreboard|show\s*score|view\s*score)\b/.test(t)) return { action: "scorecard" };
 
         // Wicket commands — improved recognition
-        if (/\b(wicket|wicked|out|bowled|dismiss(ed)?|gone|got\s*him)\b/.test(t)) {
+        if (/\b(wicket|out|bowled|dismiss(ed)?|gone|got\s*him)\b/.test(t)) {
             if (/\bcaught\b/.test(t) || /\bcatch\b/.test(t)) return { action: "wicket", type: "caught" };
             if (/\blbw\b/.test(t) || /\bleg\s*before\b/.test(t)) return { action: "wicket", type: "lbw" };
             if (/\brun\s*out\b/.test(t)) return { action: "wicket", type: "runout" };
@@ -2522,7 +2556,7 @@
         }
 
         // Extras — improved recognition
-        if (/\bwide\b/.test(t) || /\bwhy\b/.test(t)) {
+        if (/\bwide\b/.test(t)) {
             const extra = extractExtraRuns(t);
             return { action: "extra", type: "wide", additionalRuns: extra };
         }
