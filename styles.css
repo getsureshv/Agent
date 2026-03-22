@@ -1698,6 +1698,141 @@ body {
     font-weight: 400;
 }
 
+/* ── Umpire Camera Section ─────────────────── */
+.umpire-video-section {
+    margin-top: 12px;
+}
+
+#umpire-cam-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    justify-content: center;
+}
+
+.umpire-cam-panel {
+    margin-top: 10px;
+    background: #0d1f3c;
+    border-radius: 10px;
+    border: 1px solid #1a3a5c;
+    overflow: hidden;
+}
+
+.umpire-cam-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: #122b4a;
+    font-size: 13px;
+    font-weight: 600;
+    color: #4fc3f7;
+}
+
+.umpire-cam-close {
+    background: none;
+    border: none;
+    color: #78909c;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+}
+
+.umpire-cam-close:hover {
+    color: #e0e0e0;
+}
+
+.umpire-cam-body {
+    padding: 10px;
+}
+
+.umpire-video-container {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.umpire-video-container video,
+.umpire-video-container canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.umpire-video-container canvas {
+    pointer-events: none;
+}
+
+.umpire-signal-overlay {
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+}
+
+.umpire-signal-overlay span {
+    display: inline-block;
+    padding: 6px 16px;
+    background: rgba(0, 0, 0, 0.75);
+    border-radius: 20px;
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+    white-space: nowrap;
+    border: 2px solid #4fc3f7;
+    animation: signal-pulse 0.6s ease-in-out infinite alternate;
+}
+
+@keyframes signal-pulse {
+    from { border-color: #4fc3f7; box-shadow: 0 0 6px rgba(79, 195, 247, 0.3); }
+    to   { border-color: #7c4dff; box-shadow: 0 0 12px rgba(124, 77, 255, 0.5); }
+}
+
+.umpire-signal-status {
+    margin-top: 8px;
+    text-align: center;
+    font-size: 12px;
+    color: #78909c;
+    min-height: 18px;
+}
+
+.umpire-confirm {
+    margin-top: 8px;
+    background: #1a3a5c;
+    border-radius: 8px;
+    padding: 10px 12px;
+    text-align: center;
+}
+
+.umpire-confirm span {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: #e0e0e0;
+    margin-bottom: 8px;
+}
+
+.umpire-confirm-btns {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+}
+
+.umpire-confirm-btns .btn-small {
+    padding: 6px 20px;
+    font-size: 13px;
+    min-width: 80px;
+}
+
 /* Responsive */
 @media (max-width: 360px) {
     .btn-run {

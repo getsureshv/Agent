@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cricket Scorer</title>
     <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
 </head>
 <body>
     <div id="app">
@@ -271,6 +274,38 @@
                         </button>
                     </div>
                     <div class="voice-status hidden" id="score-voice-status"></div>
+                </div>
+                <!-- Umpire Signal Detection -->
+                <div class="umpire-video-section">
+                    <button class="btn btn-secondary" id="umpire-cam-toggle">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                        Umpire Cam
+                    </button>
+                    <div id="umpire-cam-panel" class="umpire-cam-panel hidden">
+                        <div class="umpire-cam-header">
+                            <span>Umpire Signal Detection</span>
+                            <button class="umpire-cam-close" id="umpire-cam-close">&times;</button>
+                        </div>
+                        <div class="umpire-cam-body">
+                            <div class="umpire-video-container">
+                                <video id="umpire-video" playsinline></video>
+                                <canvas id="umpire-canvas"></canvas>
+                                <div class="umpire-signal-overlay hidden" id="umpire-signal-overlay">
+                                    <span id="umpire-signal-label"></span>
+                                </div>
+                            </div>
+                            <div class="umpire-signal-status" id="umpire-signal-status">
+                                Point camera at umpire and watch for signals
+                            </div>
+                            <div class="umpire-confirm hidden" id="umpire-confirm">
+                                <span id="umpire-confirm-text"></span>
+                                <div class="umpire-confirm-btns">
+                                    <button class="btn btn-primary btn-small" id="umpire-confirm-yes">Apply</button>
+                                    <button class="btn btn-secondary btn-small" id="umpire-confirm-no">Dismiss</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <button class="btn btn-accent btn-large hidden" id="scoring-back-to-tournament-btn" style="margin-top:8px;">Back to Tournament</button>
             </div>

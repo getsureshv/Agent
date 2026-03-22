@@ -2714,4 +2714,250 @@
     } else if (voiceScoreBtn) {
         voiceScoreBtn.style.display = "none";
     }
+
+    // ── Umpire Signal Detection (MediaPipe Pose) ──────────────
+    const umpireCamToggle = $("umpire-cam-toggle");
+    const umpireCamPanel = $("umpire-cam-panel");
+    const umpireCamClose = $("umpire-cam-close");
+    const umpireVideo = $("umpire-video");
+    const umpireCanvas = $("umpire-canvas");
+    const umpireSignalOverlay = $("umpire-signal-overlay");
+    const umpireSignalLabel = $("umpire-signal-label");
+    const umpireSignalStatus = $("umpire-signal-status");
+    const umpireConfirm = $("umpire-confirm");
+    const umpireConfirmText = $("umpire-confirm-text");
+    const umpireConfirmYes = $("umpire-confirm-yes");
+    const umpireConfirmNo = $("umpire-confirm-no");
+
+    let umpirePose = null;
+    let umpireCamera = null;
+    let umpireCamActive = false;
+    let pendingUmpireCmd = null;
+    let signalHoldFrames = 0;
+    let lastDetectedSignal = null;
+    const SIGNAL_HOLD_THRESHOLD = 8; // frames signal must be held to trigger
+
+    if (umpireCamToggle && typeof Pose !== "undefined") {
+        umpireCamToggle.addEventListener("click", () => {
+            if (umpireCamActive) {
+                stopUmpireCam();
+            } else {
+                startUmpireCam();
+            }
+        });
+
+        umpireCamClose.addEventListener("click", stopUmpireCam);
+
+        umpireConfirmYes.addEventListener("click", () => {
+            if (pendingUmpireCmd) {
+                executeVoiceCommand(pendingUmpireCmd);
+                umpireSignalStatus.textContent = "Applied: " + describeCommand(pendingUmpireCmd);
+                umpireSignalStatus.style.color = "#a5d6a7";
+            }
+            pendingUmpireCmd = null;
+            umpireConfirm.classList.add("hidden");
+        });
+
+        umpireConfirmNo.addEventListener("click", () => {
+            pendingUmpireCmd = null;
+            umpireConfirm.classList.add("hidden");
+            umpireSignalStatus.textContent = "Signal dismissed — watching for next";
+            umpireSignalStatus.style.color = "#78909c";
+        });
+    } else if (umpireCamToggle) {
+        // MediaPipe not loaded — hide button
+        umpireCamToggle.style.display = "none";
+    }
+
+    function startUmpireCam() {
+        umpireCamPanel.classList.remove("hidden");
+        umpireCamActive = true;
+        umpireCamToggle.textContent = "Stop Umpire Cam";
+        umpireSignalStatus.textContent = "Starting camera...";
+        umpireSignalStatus.style.color = "#78909c";
+
+        umpirePose = new Pose({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+        });
+        umpirePose.setOptions({
+            modelComplexity: 1,
+            smoothLandmarks: true,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+        umpirePose.onResults(onUmpirePoseResults);
+
+        navigator.mediaDevices.getUserMedia({
+            video: { facingMode: "environment", width: { ideal: 640 }, height: { ideal: 480 } }
+        }).then((stream) => {
+            umpireVideo.srcObject = stream;
+            umpireVideo.play();
+            umpireCanvas.width = umpireVideo.videoWidth || 640;
+            umpireCanvas.height = umpireVideo.videoHeight || 480;
+
+            umpireCamera = new Camera(umpireVideo, {
+                onFrame: async () => {
+                    if (umpirePose && umpireCamActive) {
+                        await umpirePose.send({ image: umpireVideo });
+                    }
+                },
+                width: 640,
+                height: 480
+            });
+            umpireCamera.start();
+            umpireSignalStatus.textContent = "Watching for umpire signals...";
+        }).catch((err) => {
+            umpireSignalStatus.textContent = "Camera error: " + err.message;
+            umpireSignalStatus.style.color = "#ef5350";
+        });
+    }
+
+    function stopUmpireCam() {
+        umpireCamActive = false;
+        if (umpireCamera) { umpireCamera.stop(); umpireCamera = null; }
+        if (umpireVideo.srcObject) {
+            umpireVideo.srcObject.getTracks().forEach(t => t.stop());
+            umpireVideo.srcObject = null;
+        }
+        if (umpirePose) { umpirePose.close(); umpirePose = null; }
+        umpireCamPanel.classList.add("hidden");
+        umpireSignalOverlay.classList.add("hidden");
+        umpireConfirm.classList.add("hidden");
+        umpireCamToggle.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg> Umpire Cam';
+        signalHoldFrames = 0;
+        lastDetectedSignal = null;
+        pendingUmpireCmd = null;
+    }
+
+    function onUmpirePoseResults(results) {
+        const canvasCtx = umpireCanvas.getContext("2d");
+        umpireCanvas.width = results.image.width;
+        umpireCanvas.height = results.image.height;
+        canvasCtx.clearRect(0, 0, umpireCanvas.width, umpireCanvas.height);
+
+        if (results.poseLandmarks) {
+            // Draw skeleton
+            drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS, { color: "rgba(79,195,247,0.4)", lineWidth: 2 });
+            drawLandmarks(canvasCtx, results.poseLandmarks, { color: "rgba(124,77,255,0.6)", lineWidth: 1, radius: 3 });
+
+            const signal = detectUmpireSignal(results.poseLandmarks);
+
+            if (signal) {
+                if (signal === lastDetectedSignal) {
+                    signalHoldFrames++;
+                } else {
+                    lastDetectedSignal = signal;
+                    signalHoldFrames = 1;
+                }
+
+                // Show live overlay
+                umpireSignalOverlay.classList.remove("hidden");
+                umpireSignalLabel.textContent = signal.label + (signalHoldFrames < SIGNAL_HOLD_THRESHOLD ? " ..." : " !");
+
+                // Trigger confirmation once threshold reached
+                if (signalHoldFrames === SIGNAL_HOLD_THRESHOLD && !pendingUmpireCmd) {
+                    pendingUmpireCmd = signal.cmd;
+                    umpireConfirmText.textContent = "Detected: " + signal.label + " — Apply?";
+                    umpireConfirm.classList.remove("hidden");
+                    umpireSignalStatus.textContent = "Signal detected! Confirm below.";
+                    umpireSignalStatus.style.color = "#4fc3f7";
+                }
+            } else {
+                if (lastDetectedSignal && signalHoldFrames < SIGNAL_HOLD_THRESHOLD) {
+                    signalHoldFrames = 0;
+                    lastDetectedSignal = null;
+                    umpireSignalOverlay.classList.add("hidden");
+                }
+            }
+        } else {
+            umpireSignalOverlay.classList.add("hidden");
+            if (!pendingUmpireCmd) {
+                signalHoldFrames = 0;
+                lastDetectedSignal = null;
+            }
+        }
+    }
+
+    /**
+     * Detect umpire signals from pose landmarks.
+     * MediaPipe Pose landmarks (key indices):
+     *   0: nose, 11: left shoulder, 12: right shoulder,
+     *   13: left elbow, 14: right elbow,
+     *   15: left wrist, 16: right wrist,
+     *   23: left hip, 24: right hip
+     */
+    function detectUmpireSignal(lm) {
+        const nose = lm[0];
+        const lShoulder = lm[11], rShoulder = lm[12];
+        const lElbow = lm[13], rElbow = lm[14];
+        const lWrist = lm[15], rWrist = lm[16];
+        const lHip = lm[23], rHip = lm[24];
+
+        const shoulderY = (lShoulder.y + rShoulder.y) / 2;
+        const shoulderX_span = Math.abs(lShoulder.x - rShoulder.x);
+        const hipY = (lHip.y + rHip.y) / 2;
+        const torsoH = hipY - shoulderY;
+
+        // Helper: is a wrist above the head?
+        const aboveHead = (w) => w.y < nose.y - 0.03;
+        // Helper: is a wrist near shoulder height (horizontal)?
+        const atShoulderHeight = (w) => Math.abs(w.y - shoulderY) < torsoH * 0.4;
+        // Helper: is a wrist extended wide (beyond shoulder)?
+        const extendedWide = (w, shoulder) =>
+            Math.abs(w.x - shoulder.x) > shoulderX_span * 0.7;
+        // Helper: is a wrist below hips (arms down)?
+        const belowHip = (w) => w.y > hipY + 0.02;
+
+        const lUp = aboveHead(lWrist);
+        const rUp = aboveHead(rWrist);
+        const lHoriz = atShoulderHeight(lWrist) && extendedWide(lWrist, lShoulder);
+        const rHoriz = atShoulderHeight(rWrist) && extendedWide(rWrist, rShoulder);
+        const lDown = belowHip(lWrist);
+        const rDown = belowHip(rWrist);
+
+        // SIX — both arms raised above head
+        if (lUp && rUp) {
+            return { label: "SIX", cmd: { action: "runs", runs: 6 } };
+        }
+
+        // FOUR — one arm waving horizontally side to side (arm at shoulder, extended)
+        // While other arm is down or at side
+        if ((lHoriz && !rHoriz && !rUp) || (rHoriz && !lHoriz && !lUp)) {
+            // Check if the elbow is relatively straight (arm extended)
+            const isLeftSignal = lHoriz && !rHoriz;
+            return { label: "FOUR", cmd: { action: "runs", runs: 4 } };
+        }
+
+        // OUT — one arm raised straight up (index finger), other arm down
+        if (lUp && !rUp && rDown) {
+            return { label: "OUT", cmd: { action: "wicket", type: "bowled" } };
+        }
+        if (rUp && !lUp && lDown) {
+            return { label: "OUT", cmd: { action: "wicket", type: "bowled" } };
+        }
+
+        // WIDE — both arms extended horizontally (like a T-pose)
+        if (lHoriz && rHoriz) {
+            return { label: "WIDE", cmd: { action: "extra", type: "wide", additionalRuns: 0 } };
+        }
+
+        // NO BALL — one arm extended up at roughly 45 degrees
+        // (above shoulder but not fully overhead, and the other arm is down)
+        const lMidUp = lWrist.y < shoulderY && !aboveHead(lWrist) && extendedWide(lWrist, lShoulder);
+        const rMidUp = rWrist.y < shoulderY && !aboveHead(rWrist) && extendedWide(rWrist, rShoulder);
+        if ((lMidUp && rDown) || (rMidUp && lDown)) {
+            return { label: "NO BALL", cmd: { action: "extra", type: "noball", additionalRuns: 0 } };
+        }
+
+        // BYE — one arm raised up, other arm tapping above it
+        // Simplified: both arms up but one higher than the other
+        if (lWrist.y < shoulderY && rWrist.y < shoulderY && !lUp && !rUp) {
+            const diff = Math.abs(lWrist.y - rWrist.y);
+            if (diff > torsoH * 0.15) {
+                return { label: "BYE", cmd: { action: "extra", type: "bye", additionalRuns: 0 } };
+            }
+        }
+
+        return null;
+    }
 })();
