@@ -2737,6 +2737,26 @@
     let lastDetectedSignal = null;
     const SIGNAL_HOLD_THRESHOLD = 8; // frames signal must be held to trigger
 
+    // ── Debug log helpers ───────────────────────
+    const umpireDebugEntries = $("umpire-debug-entries");
+    const umpireDebugToggleCb = $("umpire-debug-toggle-cb");
+    let umpireDebugFrameCount = 0;
+    const UMPIRE_DEBUG_MAX_LINES = 120;
+
+    function umpireDbg(html, cssClass) {
+        if (!umpireDebugEntries || (umpireDebugToggleCb && !umpireDebugToggleCb.checked)) return;
+        const ts = new Date().toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
+        const line = document.createElement("div");
+        line.className = cssClass || "";
+        line.innerHTML = `<span class="dbg-frame">[${ts}]</span> ${html}`;
+        umpireDebugEntries.appendChild(line);
+        // Trim old lines
+        while (umpireDebugEntries.childElementCount > UMPIRE_DEBUG_MAX_LINES) {
+            umpireDebugEntries.removeChild(umpireDebugEntries.firstChild);
+        }
+        umpireDebugEntries.scrollTop = umpireDebugEntries.scrollHeight;
+    }
+
     if (umpireCamToggle && typeof Pose !== "undefined") {
         umpireCamToggle.addEventListener("click", () => {
             if (umpireCamActive) {
@@ -2772,9 +2792,13 @@
     function startUmpireCam() {
         umpireCamPanel.classList.remove("hidden");
         umpireCamActive = true;
+        umpireDebugFrameCount = 0;
+        if (umpireDebugEntries) umpireDebugEntries.innerHTML = "";
         umpireCamToggle.textContent = "Stop Umpire Cam";
         umpireSignalStatus.textContent = "Starting camera...";
         umpireSignalStatus.style.color = "#78909c";
+
+        umpireDbg("Initializing MediaPipe Pose model...", "dbg-cam");
 
         umpirePose = new Pose({
             locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
@@ -2786,14 +2810,17 @@
             minTrackingConfidence: 0.5
         });
         umpirePose.onResults(onUmpirePoseResults);
+        umpireDbg("Pose model configured (complexity=1, conf=0.5)", "dbg-cam");
 
         navigator.mediaDevices.getUserMedia({
             video: { facingMode: "environment", width: { ideal: 640 }, height: { ideal: 480 } }
         }).then((stream) => {
+            umpireDbg("Camera stream acquired (" + stream.getVideoTracks()[0].label + ")", "dbg-cam");
             umpireVideo.srcObject = stream;
             umpireVideo.play();
             umpireCanvas.width = umpireVideo.videoWidth || 640;
             umpireCanvas.height = umpireVideo.videoHeight || 480;
+            umpireDbg("Video size: " + (umpireVideo.videoWidth || 640) + "x" + (umpireVideo.videoHeight || 480), "dbg-cam");
 
             umpireCamera = new Camera(umpireVideo, {
                 onFrame: async () => {
@@ -2805,8 +2832,10 @@
                 height: 480
             });
             umpireCamera.start();
+            umpireDbg("Camera started — sending frames to Pose model", "dbg-cam");
             umpireSignalStatus.textContent = "Watching for umpire signals...";
         }).catch((err) => {
+            umpireDbg("CAMERA ERROR: " + err.message, "dbg-no-pose");
             umpireSignalStatus.textContent = "Camera error: " + err.message;
             umpireSignalStatus.style.color = "#ef5350";
         });
@@ -2830,24 +2859,47 @@
     }
 
     function onUmpirePoseResults(results) {
+        umpireDebugFrameCount++;
         const canvasCtx = umpireCanvas.getContext("2d");
         umpireCanvas.width = results.image.width;
         umpireCanvas.height = results.image.height;
         canvasCtx.clearRect(0, 0, umpireCanvas.width, umpireCanvas.height);
+
+        // Log every 30th frame to avoid spam (roughly 1/sec at 30fps)
+        const shouldLog = (umpireDebugFrameCount % 30 === 0);
 
         if (results.poseLandmarks) {
             // Draw skeleton
             drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS, { color: "rgba(79,195,247,0.4)", lineWidth: 2 });
             drawLandmarks(canvasCtx, results.poseLandmarks, { color: "rgba(124,77,255,0.6)", lineWidth: 1, radius: 3 });
 
+            if (shouldLog) {
+                const lm = results.poseLandmarks;
+                const noseY = lm[0].y.toFixed(2);
+                const lW = "(" + lm[15].x.toFixed(2) + "," + lm[15].y.toFixed(2) + ")";
+                const rW = "(" + lm[16].x.toFixed(2) + "," + lm[16].y.toFixed(2) + ")";
+                const lS = "(" + lm[11].x.toFixed(2) + "," + lm[11].y.toFixed(2) + ")";
+                const rS = "(" + lm[12].x.toFixed(2) + "," + lm[12].y.toFixed(2) + ")";
+                umpireDbg("F#" + umpireDebugFrameCount + " POSE OK — nose.y=" + noseY
+                    + " lWrist=" + lW + " rWrist=" + rW, "dbg-pose");
+                umpireDbg("  shoulders: L=" + lS + " R=" + rS
+                    + " hips: L=(" + lm[23].x.toFixed(2) + "," + lm[23].y.toFixed(2) + ")"
+                    + " R=(" + lm[24].x.toFixed(2) + "," + lm[24].y.toFixed(2) + ")", "dbg-landmark");
+            }
+
             const signal = detectUmpireSignal(results.poseLandmarks);
 
             if (signal) {
-                if (signal === lastDetectedSignal) {
+                if (signal.label === (lastDetectedSignal && lastDetectedSignal.label)) {
                     signalHoldFrames++;
                 } else {
                     lastDetectedSignal = signal;
                     signalHoldFrames = 1;
+                    umpireDbg("NEW signal: " + signal.label + " (hold=1/" + SIGNAL_HOLD_THRESHOLD + ")", "dbg-signal");
+                }
+
+                if (signalHoldFrames % 5 === 0) {
+                    umpireDbg(signal.label + " hold=" + signalHoldFrames + "/" + SIGNAL_HOLD_THRESHOLD, "dbg-hold");
                 }
 
                 // Show live overlay
@@ -2856,6 +2908,7 @@
 
                 // Trigger confirmation once threshold reached
                 if (signalHoldFrames === SIGNAL_HOLD_THRESHOLD && !pendingUmpireCmd) {
+                    umpireDbg("TRIGGERED: " + signal.label + " — awaiting confirmation", "dbg-trigger");
                     pendingUmpireCmd = signal.cmd;
                     umpireConfirmText.textContent = "Detected: " + signal.label + " — Apply?";
                     umpireConfirm.classList.remove("hidden");
@@ -2863,13 +2916,20 @@
                     umpireSignalStatus.style.color = "#4fc3f7";
                 }
             } else {
+                if (shouldLog) {
+                    umpireDbg("F#" + umpireDebugFrameCount + " no signal matched", "dbg-landmark");
+                }
                 if (lastDetectedSignal && signalHoldFrames < SIGNAL_HOLD_THRESHOLD) {
+                    umpireDbg(lastDetectedSignal.label + " lost at hold=" + signalHoldFrames + " (need " + SIGNAL_HOLD_THRESHOLD + ") — reset", "dbg-hold");
                     signalHoldFrames = 0;
                     lastDetectedSignal = null;
                     umpireSignalOverlay.classList.add("hidden");
                 }
             }
         } else {
+            if (shouldLog) {
+                umpireDbg("F#" + umpireDebugFrameCount + " NO POSE detected (no person visible?)", "dbg-no-pose");
+            }
             umpireSignalOverlay.classList.add("hidden");
             if (!pendingUmpireCmd) {
                 signalHoldFrames = 0;
@@ -2914,6 +2974,14 @@
         const rHoriz = atShoulderHeight(rWrist) && extendedWide(rWrist, rShoulder);
         const lDown = belowHip(lWrist);
         const rDown = belowHip(rWrist);
+
+        // Debug: log arm position flags every 30 frames
+        if (umpireDebugFrameCount % 30 === 0) {
+            umpireDbg("  arms: lUp=" + lUp + " rUp=" + rUp
+                + " lHoriz=" + lHoriz + " rHoriz=" + rHoriz
+                + " lDown=" + lDown + " rDown=" + rDown, "dbg-landmark");
+            umpireDbg("  torsoH=" + torsoH.toFixed(3) + " shoulderSpan=" + shoulderX_span.toFixed(3), "dbg-landmark");
+        }
 
         // SIX — both arms raised above head
         if (lUp && rUp) {
