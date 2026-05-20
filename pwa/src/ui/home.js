@@ -63,8 +63,11 @@ async function _renderSavedTournaments() {
     console.warn('[home] loadTournaments error:', e);
   }
 
+  // IMPORTANT: do NOT touch section.style.display when our list is empty.
+  // The legacy app.js renders its own tournaments into the same #saved-tournaments-list
+  // div by reading localStorage['cricket_tournaments']. Hiding the section here would
+  // wipe whatever app.js just drew. Only render when we have data of our own (Dexie).
   if (!tournaments.length) {
-    section.style.display = 'none';
     return;
   }
 
