@@ -348,6 +348,11 @@
         saveMatchState();
     }
 
+    // Allow api-bridge.js to trigger a re-render when a WS event arrives from another device.
+    // Note: if cricket:remoteUpdate fires before this line executes (page-load race), the bridge
+    // falls back gracefully — the next user interaction will update the display.
+    window.__cricketBridgeRerender = function() { try { updateDisplay(); } catch(e) {} };
+
     function formatOvers(balls) {
         return Math.floor(balls / 6) + "." + (balls % 6);
     }
