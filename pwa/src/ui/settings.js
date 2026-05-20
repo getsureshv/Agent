@@ -118,21 +118,30 @@ function _initSignInScreen() {
   });
 }
 
+// Helper: write to the status element AND make it visible (the inline
+// style='display:none;' in HTML otherwise hides it even when set).
+function _setSigninStatus(text, cls) {
+  const el = document.getElementById('signin-status');
+  if (!el) return;
+  el.textContent = text;
+  el.className = cls || 'signin-status';
+  el.style.display = 'block';
+}
+
 async function _submitSignIn() {
   const emailInput = document.getElementById('signin-email-input');
   const email = emailInput?.value.trim();
-  const statusEl = document.getElementById('signin-status');
 
   if (!email || !email.includes('@')) {
-    if (statusEl) { statusEl.textContent = 'Please enter a valid email address.'; statusEl.className = 'signin-status error'; }
+    _setSigninStatus('Please enter a valid email address.', 'signin-status error');
     return;
   }
 
-  if (statusEl) { statusEl.textContent = 'Sending sign-in link…'; statusEl.className = 'signin-status'; }
+  _setSigninStatus('Registering device…', 'signin-status');
 
   const auth = await getAuth();
   if (!auth) {
-    if (statusEl) { statusEl.textContent = 'Auth not available — using anonymous mode.'; statusEl.className = 'signin-status'; }
+    _setSigninStatus('Auth not available — using anonymous mode.', 'signin-status');
     setTimeout(() => showScreen('home-screen', { clearStack: true }), 1500);
     return;
   }
@@ -140,15 +149,10 @@ async function _submitSignIn() {
   try {
     // Device-token auth — auto-register this device
     const token = await auth.getDeviceToken();
-    if (statusEl) {
-      statusEl.textContent = `Device registered. Token stored. Sync is active.`;
-      statusEl.className = 'signin-status success';
-    }
-    setTimeout(() => showScreen('home-screen', { clearStack: true }), 1500);
+    _setSigninStatus('Device registered. Token stored. Sync is active.', 'signin-status success');
+    // Brief flash of success, then go home
+    setTimeout(() => showScreen('home-screen', { clearStack: true }), 1800);
   } catch (err) {
-    if (statusEl) {
-      statusEl.textContent = 'Registration error: ' + err.message;
-      statusEl.className = 'signin-status error';
-    }
+    _setSigninStatus('Registration error: ' + (err?.message || err), 'signin-status error');
   }
 }
