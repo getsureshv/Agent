@@ -4,12 +4,23 @@
  *
  * Start: node server.js
  * Env:   DATABASE_URL, PORT (default 3000), ADMIN_PASSWORD, NODE_ENV
+ *
+ * Route order (important — Express matches top-to-bottom):
+ *   1. CORS middleware for /api
+ *   2. JSON body parser
+ *   3. API routes  (/api/*)
+ *   4. Admin wipe  (/admin/wipe)
+ *   5. PWA manifest rewrite  GET /pwa/manifest.json  ← must precede static
+ *   6. PWA static mount      /pwa  → ./pwa/
+ *   7. PWA SPA fallback       GET /pwa/*  → ./pwa/index.html
+ *   8. Legacy root static    /  → __dirname
  */
 
 import 'dotenv/config';
 import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 
 import express from 'express';
 import cors from 'cors';
@@ -26,6 +37,9 @@ import matchesRouter from './routes/matches.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = parseInt(process.env.PORT || '3000', 10);
 
+// require() helper for loading JSON in ESM
+const require = createRequire(import.meta.url);
+
 // ── Express app ──────────────────────────────────────────────────────
 const app = express();
 
@@ -38,14 +52,6 @@ app.use('/api', cors({
 
 // Parse JSON bodies
 app.use(express.json({ limit: '1mb' }));
-
-// Static file serving — serves index.html, app.js, styles.css, exam.pdf, etc.
-// Must come BEFORE API routes so static files don't get intercepted.
-app.use(express.static(__dirname, {
-  index: 'index.html',
-  // Do not serve node_modules or hidden files
-  dotfiles: 'ignore',
-}));
 
 // ── API Routes ───────────────────────────────────────────────────────
 app.use('/api/health',      healthRouter);
@@ -91,6 +97,51 @@ if (adminPassword) {
 app.use('/api', (req, res) => {
   res.status(404).json({ error: 'API route not found', code: 'NOT_FOUND' });
 });
+
+// ── PWA — Agent-Mobile served at /pwa ───────────────────────────────
+//
+// The Agent-Mobile repo lives as a git submodule at ./pwa (see .gitmodules).
+// We mount it at /pwa so that phones visit /pwa while the desktop scoring
+// app continues to be served at /.
+//
+// IMPORTANT — manifest rewrite must be registered BEFORE express.static
+// so that this handler takes precedence over the file on disk.
+app.get('/pwa/manifest.json', (req, res) => {
+  // Load fresh on each request (no module cache concerns — it's JSON)
+  // eslint-disable-next-line import/no-dynamic-require
+  const manifest = require('./pwa/manifest.json');
+  const rewritten = {
+    ...manifest,
+    start_url: '/pwa/',
+    scope: '/pwa/',
+  };
+  // Rewrite root-relative icon paths to be /pwa-relative
+  if (Array.isArray(rewritten.icons)) {
+    rewritten.icons = rewritten.icons.map((icon) => ({
+      ...icon,
+      src: icon.src.startsWith('/') ? '/pwa' + icon.src : icon.src,
+    }));
+  }
+  res.json(rewritten);
+});
+
+// Serve PWA static assets (CSS, JS, icons, sw.js, …)
+app.use('/pwa', express.static(path.join(__dirname, 'pwa'), {
+  dotfiles: 'ignore',
+}));
+
+// SPA fallback — any unmatched /pwa/* route gets the PWA shell
+app.get('/pwa/*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'pwa', 'index.html'));
+});
+
+// ── Legacy root static ──────────────────────────────────────────────────
+// Serves the desktop cricket scoring app: index.html, app.js, styles.css, etc.
+// Must come AFTER all /api, /admin, and /pwa routes.
+app.use(express.static(__dirname, {
+  index: 'index.html',
+  dotfiles: 'ignore',
+}));
 
 // ── HTTP server + WebSocket ──────────────────────────────────────────
 const httpServer = http.createServer(app);
