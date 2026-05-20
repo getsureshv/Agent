@@ -6,12 +6,13 @@
  * Other devs reference these names directly (especially 'vosk-model-v1').
  */
 
-const CACHE_VERSION = 'v1';
+// Bump CACHE_VERSION to evict old app-shell assets on next activate.
+const CACHE_VERSION = 'v2';
 
-const CACHE_APP_SHELL      = 'app-shell-v1';
-const CACHE_VENDOR_MP      = 'vendor-mediapipe-v1';
-const CACHE_API            = 'api-v1';             // was: supabase-api-v1
-const CACHE_VOSK_MODEL     = 'vosk-model-v1';  // NOT precached — populated by Dev 3's downloadVoskModel()
+const CACHE_APP_SHELL      = 'app-shell-' + CACHE_VERSION;
+const CACHE_VENDOR_MP      = 'vendor-mediapipe-v1';                  // big binaries — don't re-download on every bump
+const CACHE_API            = 'api-' + CACHE_VERSION;
+const CACHE_VOSK_MODEL     = 'vosk-model-v1';                        // populated by Dev 3's downloadVoskModel() — keep stable
 
 // All known caches — anything not in this list will be deleted on activate
 const ALL_CACHES = [CACHE_APP_SHELL, CACHE_VENDOR_MP, CACHE_API, CACHE_VOSK_MODEL];
@@ -93,7 +94,8 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 4. App-shell assets: index.html, styles.css, src/**, manifest.json, icons/ → Cache First
+  // 4a. JS/HTML/CSS app code → Stale-While-Revalidate so code updates ship on next load
+  //     without requiring a CACHE_VERSION bump.
   if (
     url.origin === self.location.origin &&
     (
@@ -101,9 +103,17 @@ self.addEventListener('fetch', (event) => {
       url.pathname === '/index.html' ||
       url.pathname === '/styles.css' ||
       url.pathname === '/manifest.json' ||
-      url.pathname.startsWith('/src/') ||
-      url.pathname.startsWith('/icons/')
+      url.pathname.startsWith('/src/')
     )
+  ) {
+    event.respondWith(staleWhileRevalidate(request, CACHE_APP_SHELL));
+    return;
+  }
+
+  // 4b. Icons — truly static, safe to cache-first
+  if (
+    url.origin === self.location.origin &&
+    url.pathname.startsWith('/icons/')
   ) {
     event.respondWith(cacheFirst(request, CACHE_APP_SHELL));
     return;
