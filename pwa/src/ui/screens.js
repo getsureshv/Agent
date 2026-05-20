@@ -4,6 +4,8 @@
  * Called by src/main.js after storage + sync init.
  */
 
+import { initSettings } from './settings.js';
+
 // Valid screen IDs per INTERFACES.md
 const VALID_SCREENS = [
   'home-screen',
@@ -118,6 +120,13 @@ export function initUI() {
       goBack();
     }
   });
+
+  // Wire up Settings / Sign-In screen handlers (button clicks, form submit)
+  try {
+    initSettings();
+  } catch (err) {
+    console.error('[screens] initSettings failed:', err);
+  }
 
   // Navigate to home screen as the initial state
   showScreen('home-screen', { clearStack: true });
