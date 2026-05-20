@@ -13,7 +13,7 @@
 
 // ─── Build Badge (proves which code is running on-device) ─────────────────────
 // Visible chip in the bottom-left corner. Tap to clear caches + reload.
-const BUILD_TAG = '20260520-1950-fix3';
+const BUILD_TAG = '20260520-2010-fix4';
 window.__BUILD_TAG__ = BUILD_TAG;
 
 function _mountBuildBadge() {

@@ -10,7 +10,7 @@
 
 // Import from vendored ESM copy — preferred for offline-first PWA.
 // CDN fallback: https://cdn.jsdelivr.net/npm/dexie@4.0.8/+esm
-import Dexie from '/vendor/dexie/dexie.mjs';
+import Dexie from '/pwa/vendor/dexie/dexie.mjs';
 
 export const db = new Dexie('CricketScorer');
 
