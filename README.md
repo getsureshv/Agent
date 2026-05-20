@@ -168,3 +168,62 @@ Agent/
 └── docs/
     └── ARCHITECTURE_V2.md # Full server architecture spec
 ```
+
+---
+
+## Dual-Mount: PWA at `/pwa` + Legacy App at `/`
+
+This repo serves **two front-ends from one Render service**:
+
+| Path | App | Repo |
+|------|-----|------|
+| `/` | Desktop cricket scoring app | this repo (legacy) |
+| `/pwa` | Agent-Mobile PWA | [getsureshv/Agent-Mobile](https://github.com/getsureshv/Agent-Mobile) (git submodule at `./pwa`) |
+
+### How it works
+
+The Agent-Mobile repository is embedded as a **git submodule** at `./pwa`:
+
+```
+.gitmodules  ← declares the submodule
+pwa/         ← checked-out Agent-Mobile source
+```
+
+`server.js` mounts the PWA in this order (Express matches top-to-bottom):
+
+1. **API routes** (`/api/*`) — handled first, always
+2. **`GET /pwa/manifest.json`** — route handler that rewrites `start_url` and `scope` to `/pwa/` and fixes root-relative icon paths before responding; must be registered _before_ the static mount so it takes precedence over the file on disk
+3. **`/pwa` static mount** — `express.static('./pwa')` serves all PWA assets
+4. **`GET /pwa/*` SPA fallback** — unmatched deep routes get `pwa/index.html` for client-side routing
+5. **Root static mount** — serves the legacy app (`index.html`, `app.js`, `styles.css`, …)
+
+### Service Worker scope
+
+The PWA's `index.html` registers `/sw.js` with no explicit scope argument.  
+When served at `/pwa/sw.js`, the browser auto-assigns scope `/pwa/`. No source modification is required.
+
+### Manifest rewrite (why it's needed)
+
+`pwa/manifest.json` ships with `"start_url": "/"` and `"scope": "/"`.  
+When the PWA is installed from `/pwa`, those root-relative values would point outside the PWA's path. The server intercepts `GET /pwa/manifest.json` and rewrites on the fly:
+
+```json
+{ "start_url": "/pwa/", "scope": "/pwa/", "icons": [{ "src": "/pwa/icons/…" }] }
+```
+
+The source `Agent-Mobile` repo is **not modified**.
+
+### Cloning with submodules
+
+```bash
+git clone --recurse-submodules https://github.com/getsureshv/Agent.git
+# or, if already cloned:
+git submodule update --init --recursive
+```
+
+Render Free tier supports submodules natively — no extra build steps needed.
+
+### Future optimisation
+
+`pwa/config.js` currently hardcodes `BASE_URL: 'https://cricket-scorer-asmc.onrender.com'`.  
+When both apps share the same origin, `BASE_URL` could be set to `''` (empty string) to use same-origin requests and eliminate any CORS overhead. Left as-is for v1.
