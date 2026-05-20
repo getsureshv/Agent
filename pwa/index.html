@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Cricket Scorer</title>
+    <!-- DEV5: Mobile meta tags -->
+    <meta name="theme-color" content="#1a237e">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="CricketScorer">
+    <meta name="mobile-web-app-capable" content="yes">
+    <!-- /DEV5: Mobile meta tags -->
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="/icons/icon-180.png">
+    <link rel="stylesheet" href="styles.css">
+    <!-- DEV5: Mobile-first CSS additions -->
+    <link rel="stylesheet" href="src/ui/mobile.css">
+    <!-- /DEV5 -->
+    <!-- DEV1: Self-hosted MediaPipe (was jsdelivr CDN) -->
+    <script src="/vendor/mediapipe/camera_utils.js"></script>
+    <script src="/vendor/mediapipe/drawing_utils.js"></script>
+    <script src="/vendor/mediapipe/pose/pose.js"></script>
+    <!-- DEV4: User-supplied Supabase config (gitignored) -->
+    <script src="/config.js"></script>
+    <script>
+      // Service Worker Registration (Dev 1)
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.register('/sw.js')
+            .then(function (reg) { console.log('[SW] registered:', reg.scope); })
+            .catch(function (err) { console.warn('[SW] registration failed:', err); });
+        });
+      }
+    </script>
+</head>
+<body>
+    <div id="app">
+        <!-- Home Screen -->
+        <div id="home-screen" class="screen active">
+            <!-- DEV5: Home header with sync indicator -->
+            <div class="home-header-row">
+                <h1>Cricket Scorer</h1>
+                <div class="home-header-right">
+                    <div class="sync-status" id="sync-status-home" title="Sync status" aria-label="Sync status" role="button" tabindex="0"></div>
+                    <button class="btn btn-secondary btn-small" id="home-settings-btn" title="Settings" aria-label="Settings">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                    </button>
+                </div>
+            </div>
+            <!-- /DEV5 -->
+            <div class="home-actions">
+                <button class="btn btn-primary btn-large" id="quick-match-btn">Quick Match</button>
+                <button class="btn btn-accent btn-large" id="new-tournament-btn">New Tournament</button>
+                <div id="saved-tournaments-section" class="saved-tournaments" style="display:none;">
+                    <h3>Saved Tournaments</h3>
+                    <div id="saved-tournaments-list"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tournament Setup Screen -->
+        <div id="tournament-setup-screen" class="screen">
+            <h1>Tournament Setup</h1>
+            <div class="setup-form">
+                <div class="form-group">
+                    <label for="tournament-name">Tournament Name</label>
+                    <input type="text" id="tournament-name" placeholder="e.g. Weekend League" value="">
+                </div>
+                <div class="form-group">
+                    <label for="tournament-format">Format</label>
+                    <select id="tournament-format" class="form-select">
+                        <option value="league">League (Round Robin)</option>
+                        <option value="knockout">Knockout</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="tournament-overs">Overs per Innings</label>
+                    <input type="number" id="tournament-overs" min="1" max="50" value="10">
+                </div>
+                <div class="form-group">
+                    <label for="tournament-players">Playing XI (per match)</label>
+                    <input type="number" id="tournament-players" min="2" max="11" value="11">
+                </div>
+                <div class="form-group">
+                    <label for="tournament-squad-size">Squad Size (max roster)</label>
+                    <input type="number" id="tournament-squad-size" min="2" max="15" value="15">
+                </div>
+                <div class="home-actions">
+                    <button class="btn btn-secondary btn-large" id="back-to-home-btn">Back</button>
+                    <button class="btn btn-primary btn-large" id="next-to-teams-btn">Next: Add Teams</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Team Setup Screen -->
+        <div id="team-setup-screen" class="screen">
+            <h1>Teams</h1>
+            <div class="team-setup-form">
+                <div class="add-team-row">
+                    <input type="text" id="new-team-name-input" placeholder="Enter team name">
+                    <button class="btn btn-primary" id="add-team-btn">Add</button>
+                </div>
+                <div id="teams-list" class="teams-list"></div>
+                <div class="home-actions">
+                    <button class="btn btn-secondary btn-large" id="back-to-tournament-setup-btn">Back</button>
+                    <button class="btn btn-primary btn-large" id="generate-fixtures-btn">Generate Fixtures</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Team Players Screen (add players to a specific team) -->
+        <div id="team-players-screen" class="screen">
+            <h1 id="team-players-heading">Team Players</h1>
+            <div id="team-players-inputs" class="player-inputs"></div>
+            <div class="home-actions" style="margin-top:16px;">
+                <button class="btn btn-secondary btn-large" id="back-to-teams-btn">Back</button>
+                <button class="btn btn-primary btn-large" id="save-team-players-btn">Save Players</button>
+            </div>
+        </div>
+
+        <!-- Tournament Dashboard (fixtures + points table + teams) -->
+        <div id="tournament-dashboard-screen" class="screen">
+            <h1 id="tournament-dashboard-title">Tournament</h1>
+            <div class="tab-bar">
+                <button class="tab-btn active" data-tab="fixtures">Fixtures</button>
+                <button class="tab-btn" data-tab="points">Points Table</button>
+                <button class="tab-btn" data-tab="teams">Teams</button>
+            </div>
+            <div id="tab-fixtures" class="tab-content active">
+                <div id="fixtures-list" class="fixtures-list"></div>
+            </div>
+            <div id="tab-points" class="tab-content">
+                <div id="points-table-container"></div>
+            </div>
+            <div id="tab-teams" class="tab-content">
+                <div id="dashboard-teams-list" class="teams-list"></div>
+            </div>
+            <button class="btn btn-secondary btn-large" id="back-to-home-from-dashboard-btn" style="margin-top:16px;">Back to Home</button>
+        </div>
+
+        <!-- Match Setup Screen (for both quick match and tournament match) -->
+        <div id="setup-screen" class="screen">
+            <h1>Match Setup</h1>
+            <div class="setup-form">
+                <div class="form-group">
+                    <label for="team1-name">Team 1</label>
+                    <input type="text" id="team1-name" placeholder="Team 1 Name" value="Team A">
+                </div>
+                <div class="form-group">
+                    <label for="team2-name">Team 2</label>
+                    <input type="text" id="team2-name" placeholder="Team 2 Name" value="Team B">
+                </div>
+                <div class="form-group">
+                    <label for="overs-limit">Overs per Innings</label>
+                    <input type="number" id="overs-limit" min="1" max="50" value="20">
+                </div>
+                <div class="form-group">
+                    <label for="players-per-team">Players per Team</label>
+                    <input type="number" id="players-per-team" min="2" max="11" value="11">
+                </div>
+                <div class="form-group">
+                    <label>Toss Won By</label>
+                    <div class="radio-group">
+                        <label id="toss-team1-label"><input type="radio" name="toss-winner" value="team1" checked> Team A</label>
+                        <label id="toss-team2-label"><input type="radio" name="toss-winner" value="team2"> Team B</label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Elected To</label>
+                    <div class="radio-group">
+                        <label><input type="radio" name="toss-decision" value="bat" checked> Bat</label>
+                        <label><input type="radio" name="toss-decision" value="bowl"> Bowl</label>
+                    </div>
+                </div>
+                <button id="next-to-players-btn" class="btn btn-primary btn-large">Next: Add Players</button>
+            </div>
+        </div>
+
+        <!-- Player Entry Screen -->
+        <div id="players-screen" class="screen">
+            <h1>Enter Players</h1>
+            <div class="players-entry">
+                <div class="team-players-section">
+                    <h2 id="team1-players-heading">Team A</h2>
+                    <div id="team1-player-inputs" class="player-inputs"></div>
+                </div>
+                <div class="team-players-section">
+                    <h2 id="team2-players-heading">Team B</h2>
+                    <div id="team2-player-inputs" class="player-inputs"></div>
+                </div>
+                <div class="player-entry-actions">
+                    <button id="back-to-setup-btn" class="btn btn-secondary btn-large">Back</button>
+                    <button id="start-match-btn" class="btn btn-primary btn-large">Start Match</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scoring Screen -->
+        <div id="scoring-screen" class="screen">
+            <!-- Match Header -->
+            <div class="match-header">
+                <div class="innings-indicator" id="innings-indicator">1st Innings</div>
+                <div class="score-display">
+                    <span id="batting-team-name">Team A</span>
+                    <span class="score" id="total-score">0/0</span>
+                    <span class="overs" id="overs-display">(0.0 ov)</span>
+                </div>
+                <div class="run-rate">
+                    CRR: <span id="current-rr">0.00</span>
+                    <span id="target-info" class="hidden"> | Target: <span id="target-score">0</span> | RRR: <span id="required-rr">0.00</span></span>
+                </div>
+                <!-- DEV5: Sync status icon (populated by src/ui/syncIndicator.js) -->
+                <div class="sync-status" id="sync-status" title="Sync status" aria-label="Sync status" role="button" tabindex="0"></div>
+                <!-- /DEV5 -->
+            </div>
+
+            <!-- Batsmen Info -->
+            <div class="batsmen-panel">
+                <div class="batsman-row" id="striker-row">
+                    <div class="batsman-info" id="striker-info-tap">
+                        <span class="batsman-name" id="striker-name">Batsman 1</span>
+                        <span class="batsman-indicator">*</span>
+                        <span class="batsman-score" id="striker-score">0 (0)</span>
+                    </div>
+                    <span class="batsman-tap-hint" id="striker-change-btn" title="Change striker">Change &#9656;</span>
+                </div>
+                <div class="batsman-row" id="non-striker-row">
+                    <div class="batsman-info" id="non-striker-info-tap">
+                        <span class="batsman-name" id="non-striker-name">Batsman 2</span>
+                        <span class="batsman-score" id="non-striker-score">0 (0)</span>
+                    </div>
+                    <span class="batsman-tap-hint" id="non-striker-change-btn" title="Change non-striker">Change &#9656;</span>
+                </div>
+            </div>
+
+            <!-- Bowler Info (tap for details / change) -->
+            <div class="bowler-panel" id="bowler-panel">
+                <div class="bowler-panel-left" id="bowler-info-tap">
+                    <span class="bowler-label">Bowling:</span>
+                    <span id="bowler-name">Bowler 1</span>
+                    <span id="bowler-figures">0-0-0-0</span>
+                </div>
+                <span class="bowler-tap-hint" id="bowler-change-btn" title="Change bowler">Change &#9656;</span>
+            </div>
+
+            <!-- Extras Display -->
+            <div class="extras-display" id="extras-display">
+                Extras: <span id="extras-total">0</span>
+                <span class="extras-breakdown" id="extras-breakdown">(wd 0, nb 0, b 0, lb 0)</span>
+            </div>
+
+            <!-- This Over -->
+            <div class="this-over">
+                <span class="over-label">This Over:</span>
+                <div id="this-over-balls" class="over-balls"></div>
+            </div>
+
+            <!-- Last Over (collapsible) -->
+            <div class="last-over" id="last-over-section" style="display:none;">
+                <div class="last-over-header" id="last-over-toggle">
+                    <span class="over-label">Last Over:</span>
+                    <span class="last-over-summary" id="last-over-summary"></span>
+                    <span class="toggle-arrow" id="toggle-arrow">&#9660;</span>
+                </div>
+                <div class="last-over-detail hidden" id="last-over-detail">
+                    <div id="last-over-balls" class="over-balls"></div>
+                </div>
+            </div>
+
+            <!-- Scoring Buttons -->
+            <div class="scoring-controls">
+                <div class="runs-section">
+                    <h3>Runs</h3>
+                    <div class="btn-grid">
+                        <button class="btn btn-run" data-runs="0">0</button>
+                        <button class="btn btn-run" data-runs="1">1</button>
+                        <button class="btn btn-run" data-runs="2">2</button>
+                        <button class="btn btn-run" data-runs="3">3</button>
+                        <button class="btn btn-run" data-runs="4">4</button>
+                        <button class="btn btn-run btn-boundary" data-runs="6">6</button>
+                    </div>
+                </div>
+
+                <div class="extras-section">
+                    <h3>Extras</h3>
+                    <div class="btn-grid">
+                        <button class="btn btn-extra" id="wide-btn">Wide</button>
+                        <button class="btn btn-extra" id="noball-btn">No Ball</button>
+                        <button class="btn btn-extra" id="bye-btn">Bye</button>
+                        <button class="btn btn-extra" id="legbye-btn">Leg Bye</button>
+                    </div>
+                </div>
+
+                <div class="wicket-section">
+                    <h3>Wicket</h3>
+                    <div class="btn-grid">
+                        <button class="btn btn-wicket" id="wicket-btn">Wicket!</button>
+                    </div>
+                </div>
+
+                <div class="actions-section">
+                    <button class="btn btn-secondary" id="undo-btn">Undo</button>
+                    <button class="btn btn-secondary" id="swap-btn">Swap Batsmen</button>
+                    <button class="btn btn-secondary" id="scorecard-btn">Scorecard</button>
+                </div>
+                <div class="voice-scoring-section">
+                    <div class="command-input-row">
+                        <input type="text" id="score-command-input" class="score-command-input" placeholder='e.g. "four", "wide 2", "wicket caught", "change bowler"'>
+                        <button class="voice-mic-btn" id="voice-score-btn" title="Voice score">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                        </button>
+                    </div>
+                    <div class="voice-status hidden" id="score-voice-status"></div>
+                </div>
+                <!-- Umpire Signal Detection -->
+                <div class="umpire-video-section">
+                    <button class="btn btn-secondary" id="umpire-cam-toggle">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                        Umpire Cam
+                    </button>
+                    <div id="umpire-cam-panel" class="umpire-cam-panel hidden">
+                        <div class="umpire-cam-header">
+                            <span>Umpire Signal Detection</span>
+                            <button class="umpire-cam-close" id="umpire-cam-close">&times;</button>
+                        </div>
+                        <div class="umpire-cam-body">
+                            <div class="umpire-video-container">
+                                <video id="umpire-video" playsinline></video>
+                                <canvas id="umpire-canvas"></canvas>
+                                <div class="umpire-signal-overlay hidden" id="umpire-signal-overlay">
+                                    <span id="umpire-signal-label"></span>
+                                </div>
+                            </div>
+                            <div class="umpire-debug-log" id="umpire-debug-log">
+                                <div class="umpire-debug-header">
+                                    <span>Live Debug Log</span>
+                                    <label class="umpire-debug-toggle"><input type="checkbox" id="umpire-debug-toggle-cb" checked> Show</label>
+                                </div>
+                                <div class="umpire-debug-entries" id="umpire-debug-entries"></div>
+                            </div>
+                            <div class="umpire-signal-status" id="umpire-signal-status">
+                                Point camera at umpire and watch for signals
+                            </div>
+                            <div class="umpire-confirm hidden" id="umpire-confirm">
+                                <span id="umpire-confirm-text"></span>
+                                <div class="umpire-confirm-btns">
+                                    <button class="btn btn-primary btn-small" id="umpire-confirm-yes">Apply</button>
+                                    <button class="btn btn-secondary btn-small" id="umpire-confirm-no">Dismiss</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn btn-accent btn-large hidden" id="scoring-back-to-tournament-btn" style="margin-top:8px;">Back to Tournament</button>
+            </div>
+        </div>
+
+        <!-- Scorecard Modal -->
+        <div id="scorecard-modal" class="modal hidden">
+            <div class="modal-content">
+                <button class="modal-close" id="close-scorecard">&times;</button>
+                <div id="scorecard-content"></div>
+            </div>
+        </div>
+
+        <!-- Wicket Modal -->
+        <div id="wicket-modal" class="modal hidden">
+            <div class="modal-content">
+                <h2>Wicket Type</h2>
+                <div class="wicket-types">
+                    <button class="btn btn-wicket-type" data-type="bowled">Bowled</button>
+                    <button class="btn btn-wicket-type" data-type="caught">Caught</button>
+                    <button class="btn btn-wicket-type" data-type="lbw">LBW</button>
+                    <button class="btn btn-wicket-type" data-type="run_out">Run Out</button>
+                    <button class="btn btn-wicket-type" data-type="stumped">Stumped</button>
+                    <button class="btn btn-wicket-type" data-type="hit_wicket">Hit Wicket</button>
+                    <button class="btn btn-wicket-type" data-type="retired">Retired</button>
+                </div>
+                <button class="btn btn-secondary" id="cancel-wicket">Cancel</button>
+            </div>
+        </div>
+
+        <!-- Extras Modal -->
+        <div id="extras-modal" class="modal hidden">
+            <div class="modal-content">
+                <h2 id="extras-modal-title">Extra Runs</h2>
+                <p>How many additional runs?</p>
+                <div class="btn-grid">
+                    <button class="btn btn-extra-run extras-runs-btn" data-extra-runs="0">0</button>
+                    <button class="btn btn-extra-run extras-runs-btn" data-extra-runs="1">1</button>
+                    <button class="btn btn-extra-run extras-runs-btn" data-extra-runs="2">2</button>
+                    <button class="btn btn-extra-run extras-runs-btn" data-extra-runs="3">3</button>
+                    <button class="btn btn-extra-run extras-runs-btn" data-extra-runs="4">4</button>
+                </div>
+                <button class="btn btn-secondary" id="cancel-extras">Cancel</button>
+            </div>
+        </div>
+
+        <!-- New Bowler Modal -->
+        <div id="new-bowler-modal" class="modal hidden">
+            <div class="modal-content">
+                <h2>Select New Bowler</h2>
+                <div id="bowler-list" class="player-list"></div>
+                <button class="btn btn-secondary" id="cancel-new-bowler">Cancel</button>
+            </div>
+        </div>
+
+        <!-- New Batsman Modal -->
+        <div id="new-batsman-modal" class="modal hidden">
+            <div class="modal-content">
+                <h2>Select New Batsman</h2>
+                <div id="batsman-list" class="player-list"></div>
+            </div>
+        </div>
+
+        <!-- Change Bowler Modal (tap to change mid-match) -->
+        <div id="change-bowler-modal" class="modal hidden">
+            <div class="modal-content">
+                <button class="modal-close" id="close-change-bowler">&times;</button>
+                <h2>Change Bowler</h2>
+                <div id="change-bowler-current" class="change-current-player"></div>
+                <div id="change-bowler-list" class="player-list"></div>
+            </div>
+        </div>
+
+        <!-- Change Batsman Modal (tap to change mid-match) -->
+        <div id="change-batsman-modal" class="modal hidden">
+            <div class="modal-content">
+                <button class="modal-close" id="close-change-batsman">&times;</button>
+                <h2 id="change-batsman-title">Change Batsman</h2>
+                <div id="change-batsman-current" class="change-current-player"></div>
+                <div id="change-batsman-list" class="player-list"></div>
+            </div>
+        </div>
+
+        <!-- Batsman Detail Modal -->
+        <div id="batsman-detail-modal" class="modal hidden">
+            <div class="modal-content">
+                <button class="modal-close" id="close-batsman-detail">&times;</button>
+                <h2 id="batsman-detail-name">Batsman</h2>
+                <div id="batsman-detail-figures"></div>
+                <div id="batsman-ball-timeline"></div>
+            </div>
+        </div>
+
+        <!-- Bowler Detail Modal -->
+        <div id="bowler-detail-modal" class="modal hidden">
+            <div class="modal-content">
+                <button class="modal-close" id="close-bowler-detail">&times;</button>
+                <h2 id="bowler-detail-name">Bowler</h2>
+                <div id="bowler-detail-figures" class="bowler-detail-summary"></div>
+                <div id="bowler-over-history"></div>
+            </div>
+        </div>
+
+        <!-- Squad Selection Modal (pick playing XI from squad) -->
+        <div id="squad-select-modal" class="modal hidden">
+            <div class="modal-content modal-content-tall">
+                <h2>Select Playing XI</h2>
+                <p class="squad-select-subtitle" id="squad-select-subtitle">Pick 11 players</p>
+                <div class="squad-select-team-section">
+                    <h3 id="squad-select-team1-heading">Team 1</h3>
+                    <div id="squad-select-team1" class="squad-select-list"></div>
+                </div>
+                <div class="squad-select-team-section">
+                    <h3 id="squad-select-team2-heading">Team 2</h3>
+                    <div id="squad-select-team2" class="squad-select-list"></div>
+                </div>
+                <button class="btn btn-primary btn-large" id="confirm-squad-btn">Confirm Squads</button>
+                <button class="btn btn-secondary" id="cancel-squad-btn" style="margin-top:8px;width:100%;">Cancel</button>
+            </div>
+        </div>
+
+        <!-- Roster Editor Modal (edit players from dashboard) -->
+        <div id="roster-editor-modal" class="modal hidden">
+            <div class="modal-content modal-content-tall">
+                <button class="modal-close" id="close-roster-editor">&times;</button>
+                <h2 id="roster-editor-title">Edit Squad</h2>
+                <div id="roster-editor-players" class="roster-editor-list"></div>
+                <div class="roster-add-row">
+                    <input type="text" id="roster-add-input" placeholder="New player name">
+                    <button class="btn btn-primary" id="roster-add-btn">Add</button>
+                </div>
+                <button class="btn btn-primary btn-large" id="save-roster-btn" style="margin-top:12px;">Save Changes</button>
+            </div>
+        </div>
+
+        <!-- Match Result Screen -->
+        <div id="result-screen" class="screen">
+            <h1 id="result-text"></h1>
+            <div id="result-summary"></div>
+            <button class="btn btn-primary btn-large" id="new-match-btn">New Match</button>
+            <button class="btn btn-accent btn-large hidden" id="back-to-tournament-btn" style="margin-top:8px;">Back to Tournament</button>
+        </div>
+
+        <!-- DEV5: Settings Screen -->
+        <div id="settings-screen" class="screen">
+            <div class="settings-header">
+                <button class="btn btn-secondary btn-small" id="settings-back-btn" data-back-btn aria-label="Back">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                    Back
+                </button>
+                <h1 style="margin:0;">Settings</h1>
+            </div>
+
+            <div class="settings-section">
+                <h2>Offline Voice</h2>
+                <p style="font-size:0.85rem;color:#78909c;margin-bottom:10px;">Download the Vosk speech model (~44 MB) to score by voice without an internet connection.</p>
+                <button class="btn btn-primary" id="download-voice-btn">Download Offline Voice</button>
+                <div id="voice-download-progress">
+                    <div id="voice-download-fill"></div>
+                </div>
+                <div id="voice-download-text"></div>
+                <div id="voice-model-size"></div>
+            </div>
+
+            <div class="settings-section">
+                <h2>Account</h2>
+                <div id="signin-nag"></div>
+                <button class="btn btn-secondary" id="settings-signin-btn">Sign In to Sync</button>
+            </div>
+
+            <div class="settings-section">
+                <h2>Sync</h2>
+                <div class="sync-status" id="sync-status-settings" title="Sync status" aria-label="Sync status" role="button" tabindex="0" style="width:auto;border-radius:8px;padding:8px 12px;gap:8px;"></div>
+            </div>
+        </div>
+        <!-- /DEV5: Settings Screen -->
+
+        <!-- DEV5: Sign-In Screen -->
+        <div id="signin-screen" class="screen">
+            <button class="btn btn-secondary btn-small" id="signin-back-btn" data-back-btn
+                style="align-self:flex-start;" aria-label="Back">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                Back
+            </button>
+            <div class="signin-logo">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#4fc3f7" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+            </div>
+            <h1 style="text-align:center;margin:0;">Sign In</h1>
+            <p class="signin-subtitle">Sign in to sync your matches across devices. Your data is always stored locally first.</p>
+
+            <div class="form-group">
+                <label for="signin-email-input">Email address</label>
+                <input type="email" id="signin-email-input" placeholder="you@example.com" autocomplete="email" inputmode="email">
+            </div>
+
+            <div class="signin-actions">
+                <button class="btn btn-primary btn-large" id="signin-submit-btn">Send Sign-In Link</button>
+                <button class="btn btn-secondary btn-large" id="signin-anon-btn">Continue Without Signing In</button>
+            </div>
+
+            <p id="signin-status" class="signin-status" style="display:none;"></p>
+            <p class="signin-anon-note">No password needed — we send a magic link to your email.</p>
+        </div>
+        <!-- /DEV5: Sign-In Screen -->
+    </div>
+
+    <!-- Floating Chat Button (always visible) -->
+    <button class="chat-fab" id="chat-fab" title="Cricket Rules">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+    </button>
+
+    <!-- Chat Panel -->
+    <div class="chat-panel hidden" id="chat-panel">
+        <div class="chat-panel-header">
+            <span class="chat-panel-title">Cricket Rules</span>
+            <button class="chat-panel-close" id="chat-panel-close">&times;</button>
+        </div>
+        <div class="chat-panel-body" id="chat-panel-body">
+            <div class="chat-search">
+                <div class="chat-search-row">
+                    <input type="text" id="chat-search-input" placeholder="Ask a rule... e.g. front foot no ball">
+                    <button class="voice-mic-btn" id="chat-voice-btn" title="Voice search">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                    </button>
+                </div>
+                <div class="voice-status hidden" id="chat-voice-status"></div>
+            </div>
+            <div class="chat-search-results hidden" id="chat-search-results"></div>
+            <div class="chat-topics" id="chat-topics">
+                <p class="chat-welcome">Or browse by topic:</p>
+                <button class="btn btn-secondary chat-topic-btn" data-topic="basics">Basic Rules</button>
+                <button class="btn btn-secondary chat-topic-btn" data-topic="scoring">Scoring &amp; Runs</button>
+                <button class="btn btn-secondary chat-topic-btn" data-topic="dismissals">All 11 Dismissals</button>
+                <button class="btn btn-secondary chat-topic-btn" data-topic="extras">Extras (Wides, No Balls)</button>
+                <button class="btn btn-secondary chat-topic-btn" data-topic="freehit">Free Hit Rules</button>
+                <button class="btn btn-secondary chat-topic-btn" data-topic="fielding">Fielding Positions</button>
+                <button class="btn btn-secondary chat-topic-btn" data-topic="formats">Match Formats (ICC)</button>
+                <button class="btn btn-secondary chat-topic-btn" data-topic="powerplay">Powerplay Rules (ICC)</button>
+                <button class="btn btn-secondary chat-topic-btn" data-topic="dls">DLS &amp; Rain Rules</button>
+                <button class="btn btn-secondary chat-topic-btn" data-topic="superover">Super Over Rules</button>
+                <button class="btn btn-secondary chat-topic-btn" data-topic="drs">DRS (Decision Review)</button>
+                <button class="btn btn-secondary chat-topic-btn" data-topic="nrr">Net Run Rate (NRR)</button>
+                <button class="btn btn-secondary chat-topic-btn" data-topic="lbw">LBW Explained</button>
+                <button class="btn btn-secondary chat-topic-btn" data-topic="umpire">Umpire Signals</button>
+                <div style="width:100%;margin:8px 0 4px;font-size:0.75rem;color:#4fc3f7;text-transform:uppercase;letter-spacing:1px;">NTCA / Umpire Exam</div>
+                <button class="btn btn-secondary chat-topic-btn" data-topic="ntca_toss">NTCA Toss &amp; Match Start</button>
+                <button class="btn btn-secondary chat-topic-btn" data-topic="ntca_fielding">NTCA Fielding &amp; Penalties</button>
+                <button class="btn btn-secondary chat-topic-btn" data-topic="ntca_noball">NTCA No Ball Rules</button>
+                <button class="btn btn-secondary chat-topic-btn" data-topic="ntca_deadball">NTCA Dead Ball Rules</button>
+                <button class="btn btn-secondary chat-topic-btn" data-topic="ntca_dismissals">NTCA Dismissal Scenarios</button>
+                <button class="btn btn-secondary chat-topic-btn" data-topic="ntca_lbw">NTCA LBW Considerations</button>
+                <button class="btn btn-secondary chat-topic-btn" data-topic="ntca_penalty">NTCA Penalty Runs &amp; Helmet</button>
+                <button class="btn btn-secondary chat-topic-btn" data-topic="ntca_powerplay">NTCA Powerplay Rules</button>
+                <button class="btn btn-secondary chat-topic-btn" data-topic="ntca_ground">NTCA Ground Setup</button>
+                <button class="btn btn-secondary chat-topic-btn" data-topic="ntca_match">NTCA Match Formats</button>
+                <button class="btn btn-secondary chat-topic-btn" data-topic="ntca_over_misc">NTCA Over &amp; Miscellaneous</button>
+                <button class="btn btn-secondary chat-topic-btn" data-topic="usacua_exam">USACUA Umpire Exam Q&amp;A</button>
+            </div>
+            <div class="chat-answer hidden" id="chat-answer">
+                <button class="btn btn-secondary chat-back-btn" id="chat-back-btn">&larr; All Topics</button>
+                <div id="chat-answer-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <!-- DEV1: Module entry point — bootstraps storage, sync, UI -->
+    <script type="module" src="/src/main.js"></script>
+</body>
+</html>

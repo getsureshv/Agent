@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Engine Tests — Cricket Scorer</title>
+  <style>
+    body { font-family: monospace; background: #0d1117; color: #c9d1d9; padding: 1.5rem; }
+    h1 { color: #58a6ff; }
+    .suite { margin: 1rem 0; }
+    .suite-title { font-size: 1.1rem; color: #e6edf3; margin-bottom: 0.4rem; font-weight: bold; }
+    .test { margin: 2px 0 2px 1rem; }
+    .pass { color: #3fb950; }
+    .fail { color: #f85149; }
+    .error { color: #d29922; }
+    #summary { margin-top: 2rem; font-size: 1.2rem; border-top: 1px solid #30363d; padding-top: 1rem; }
+  </style>
+</head>
+<body>
+<h1>Cricket Scorer — engine.js unit tests</h1>
+<div id="output"></div>
+<div id="summary"></div>
+
+<!--
+  NOTE: This test file must be served via HTTP from the project root, e.g.:
+    npx serve . -p 8080 && open http://localhost:8080/tests/engine.test.html
+  (or use VS Code Live Server, python3 -m http.server, etc.)
+  It does NOT work when opened directly via file:// due to ES module restrictions.
+
+  Import map provides Dexie for the module graph (db.js ← matchRepo.js ← engine.js).
+  applyCommand() itself is pure and never touches IndexedDB during the test.
+-->
+<script type="importmap">
+{
+  "imports": {
+    "/vendor/dexie/dexie.mjs": "https://cdn.jsdelivr.net/npm/dexie@4.0.8/+esm"
+  }
+}
+</script>
+
+<script type="module">
+/**
+ * Test runner for src/scoring/engine.js :: applyCommand()
+ *
+ * Scenarios:
+ *  1. 5-ball over: dot / single / four / wicket / wide
+ *  2. Wicket types (bowled, caught, lbw, run_out, stumped)
+ *  3. Extras (wide, no-ball, bye, leg-bye) — ball count and run count
+ *
+ * applyCommand() is a pure function — no Dexie, no DOM, no fetch.
+ * Import path uses root-relative path so the test can be served from /tests/.
+ */
+
+import { applyCommand } from '../src/scoring/engine.js';
+
+// ── Test framework ─────────────────────────────────────────────────────────
+
+const results = [];
+let currentSuite = '';
+
+function suite(name) {
+  currentSuite = name;
+}
+
+function test(name, fn) {
+  try {
+    fn();
+    results.push({ suite: currentSuite, name, pass: true });
+  } catch (e) {
+    results.push({ suite: currentSuite, name, pass: false, error: e.message });
+  }
+}
+
+function assert(condition, msg) {
+  if (!condition) throw new Error(msg ?? 'Assertion failed');
+}
+
+function assertEqual(a, b, msg) {
+  if (a !== b) throw new Error(msg ?? `Expected ${JSON.stringify(b)}, got ${JSON.stringify(a)}`);
+}
+
+// ── State factory ──────────────────────────────────────────────────────────
+
+function makeMatch({ oversLimit = 5, playersPerTeam = 11 } = {}) {
+  const makeBatsman = (name) => ({
+    name, runs: 0, balls: 0, fours: 0, sixes: 0,
+    isOut: false, dismissal: '', ballHistory: [],
+  });
+  const makeBowler = (name) => ({
+    name, overs: 0, ballsInOver: 0, maidens: 0, runs: 0, wickets: 0,
+    runsThisOver: 0, overHistory: [], currentOverBalls: [],
+  });
+
+  const batsmen = ['Alice', 'Bob', 'Charlie', 'Dave', 'Eve',
+                   'Frank', 'Grace', 'Hank', 'Iris', 'Jack', 'Kim']
+    .slice(0, playersPerTeam).map(makeBatsman);
+
+  const bowlers = [makeBowler('Zara'), makeBowler('Yusuf')];
+
+  return {
+    id: 'test-match-id',
+    team1: 'Team A', team2: 'Team B',
+    oversLimit, playersPerTeam,
+    currentInnings: 0,
+    innings: [{
+      battingTeam: 'Team A', bowlingTeam: 'Team B',
+      totalRuns: 0, totalWickets: 0, totalBalls: 0,
+      extras: { wides: 0, noBalls: 0, byes: 0, legByes: 0 },
+      oversLimit,
+      batsmen,
+      bowlers,
+      bowlingNames: ['Zara', 'Yusuf'],
+      strikerIndex: 0, nonStrikerIndex: 1, currentBowlerIndex: 0,
+      thisOver: [], lastOver: [], lastOverRuns: 0, history: [], isComplete: false,
+    }],
+  };
+}
+
+// ── Scenario 1: 5-ball over (dot / single / four / wicket / wide) ──────────
+
+suite('Scenario 1: 5-ball over — dot, single, four, wicket, wide');
+
+test('dot ball: totalRuns stays 0, totalBalls = 1', () => {
+  let s = makeMatch();
+  s = applyCommand(s, { type: 'SCORE_RUNS', payload: { runs: 0 }, ts: Date.now(), matchId: 'test-match-id' });
+  const inn = s.innings[0];
+  assertEqual(inn.totalRuns, 0, 'totalRuns after dot');
+  assertEqual(inn.totalBalls, 1, 'totalBalls after dot');
+  assertEqual(inn.batsmen[0].balls, 1, 'striker balls after dot');
+  assertEqual(inn.thisOver.length, 1, 'thisOver length after dot');
+  assertEqual(inn.thisOver[0].label, '0', 'thisOver[0].label');
+});
+
+test('single: totalRuns = 1, strike swaps, totalBalls = 1', () => {
+  let s = makeMatch();
+  s = applyCommand(s, { type: 'SCORE_RUNS', payload: { runs: 1 }, ts: Date.now(), matchId: 'test' });
+  const inn = s.innings[0];
+  assertEqual(inn.totalRuns, 1, 'totalRuns after single');
+  assertEqual(inn.totalBalls, 1, 'totalBalls after single');
+  // Strike should have swapped (odd runs)
+  assertEqual(inn.strikerIndex, 1, 'strikerIndex after single should be 1 (swapped)');
+  assertEqual(inn.nonStrikerIndex, 0, 'nonStrikerIndex after single should be 0');
+});
+
+test('four: totalRuns = 4, fours counter increments, strike stays', () => {
+  let s = makeMatch();
+  s = applyCommand(s, { type: 'SCORE_RUNS', payload: { runs: 4 }, ts: Date.now(), matchId: 'test' });
+  const inn = s.innings[0];
+  assertEqual(inn.totalRuns, 4, 'totalRuns after four');
+  assertEqual(inn.batsmen[0].fours, 1, 'fours count');
+  assertEqual(inn.batsmen[0].runs, 4, 'striker runs');
+  // Even runs — no strike swap
+  assertEqual(inn.strikerIndex, 0, 'strikerIndex unchanged after four');
+});
+
+test('wicket: totalWickets = 1, striker isOut, no extra runs', () => {
+  let s = makeMatch();
+  s = applyCommand(s, { type: 'HANDLE_WICKET', payload: { dismissalType: 'bowled' }, ts: Date.now(), matchId: 'test' });
+  const inn = s.innings[0];
+  assertEqual(inn.totalWickets, 1, 'totalWickets after wicket');
+  assertEqual(inn.totalBalls, 1, 'totalBalls after wicket');
+  assert(inn.batsmen[0].isOut, 'striker isOut');
+  assertEqual(inn.batsmen[0].balls, 1, 'striker balls');
+  assertEqual(inn.bowlers[0].wickets, 1, 'bowler wickets (bowled credited)');
+  assertEqual(inn.thisOver[inn.thisOver.length - 1].label, 'W', 'thisOver last chip label');
+});
+
+test('wide: totalRuns += 1, totalBalls unchanged, extras.wides = 1', () => {
+  let s = makeMatch();
+  s = applyCommand(s, { type: 'PROCESS_EXTRA', payload: { extraType: 'wide', additionalRuns: 0 }, ts: Date.now(), matchId: 'test' });
+  const inn = s.innings[0];
+  assertEqual(inn.totalRuns, 1, 'totalRuns after wide');
+  assertEqual(inn.totalBalls, 0, 'totalBalls after wide (no legal delivery)');
+  assertEqual(inn.extras.wides, 1, 'extras.wides');
+});
+
+// ── Scenario 2: Wicket types ───────────────────────────────────────────────
+
+suite('Scenario 2: Wicket dismissal types');
+
+['bowled', 'caught', 'lbw', 'stumped', 'hit_wicket'].forEach(dtype => {
+  test(`${dtype}: bowler gets credit`, () => {
+    let s = makeMatch();
+    s = applyCommand(s, { type: 'HANDLE_WICKET', payload: { dismissalType: dtype }, ts: Date.now(), matchId: 'test' });
+    assertEqual(s.innings[0].bowlers[0].wickets, 1, `bowler.wickets for ${dtype}`);
+  });
+});
+
+test('run_out: bowler does NOT get credit', () => {
+  let s = makeMatch();
+  s = applyCommand(s, { type: 'HANDLE_WICKET', payload: { dismissalType: 'run_out' }, ts: Date.now(), matchId: 'test' });
+  assertEqual(s.innings[0].bowlers[0].wickets, 0, 'bowler.wickets for run_out should be 0');
+});
+
+test('retired: bowler does NOT get credit', () => {
+  let s = makeMatch();
+  s = applyCommand(s, { type: 'HANDLE_WICKET', payload: { dismissalType: 'retired' }, ts: Date.now(), matchId: 'test' });
+  assertEqual(s.innings[0].bowlers[0].wickets, 0, 'bowler.wickets for retired should be 0');
+});
+
+// ── Scenario 3: Extras ─────────────────────────────────────────────────────
+
+suite('Scenario 3: Extras — ball count and run count');
+
+test('no-ball: totalRuns += 1+runs, totalBalls unchanged, extras.noBalls incremented', () => {
+  let s = makeMatch();
+  s = applyCommand(s, { type: 'PROCESS_EXTRA', payload: { extraType: 'noball', additionalRuns: 4 }, ts: Date.now(), matchId: 'test' });
+  const inn = s.innings[0];
+  assertEqual(inn.totalRuns, 5, 'totalRuns = 1+4');
+  assertEqual(inn.totalBalls, 0, 'totalBalls unchanged (free hit)');
+  assertEqual(inn.extras.noBalls, 5, 'extras.noBalls = 1+4');
+  assertEqual(inn.batsmen[0].runs, 4, 'striker runs = 4 (off bat)');
+  assertEqual(inn.batsmen[0].fours, 1, 'striker fours = 1');
+});
+
+test('bye: totalRuns += runs, totalBalls += 1, extras.byes incremented', () => {
+  let s = makeMatch();
+  s = applyCommand(s, { type: 'PROCESS_EXTRA', payload: { extraType: 'bye', additionalRuns: 2 }, ts: Date.now(), matchId: 'test' });
+  const inn = s.innings[0];
+  assertEqual(inn.totalRuns, 2, 'totalRuns = 2 byes');
+  assertEqual(inn.totalBalls, 1, 'totalBalls = 1 legal delivery');
+  assertEqual(inn.extras.byes, 2, 'extras.byes');
+  assertEqual(inn.batsmen[0].runs, 0, 'striker runs = 0 (bye, not credited to bat)');
+});
+
+test('leg-bye: totalRuns += runs, totalBalls += 1, extras.legByes incremented', () => {
+  let s = makeMatch();
+  s = applyCommand(s, { type: 'PROCESS_EXTRA', payload: { extraType: 'legbye', additionalRuns: 3 }, ts: Date.now(), matchId: 'test' });
+  const inn = s.innings[0];
+  assertEqual(inn.totalRuns, 3, 'totalRuns = 3 legbyes');
+  assertEqual(inn.totalBalls, 1, 'totalBalls = 1');
+  assertEqual(inn.extras.legByes, 3, 'extras.legByes');
+});
+
+test('wide + 2: totalRuns = 3, totalBalls = 0, strike swaps (odd)', () => {
+  let s = makeMatch();
+  s = applyCommand(s, { type: 'PROCESS_EXTRA', payload: { extraType: 'wide', additionalRuns: 2 }, ts: Date.now(), matchId: 'test' });
+  const inn = s.innings[0];
+  assertEqual(inn.totalRuns, 3, 'totalRuns = 1+2');
+  assertEqual(inn.extras.wides, 3, 'extras.wides = 3');
+  // 2 additionalRuns is even → no swap
+  assertEqual(inn.strikerIndex, 0, 'strikerIndex unchanged for even wide additional runs');
+});
+
+test('wide + 1: strike swaps (odd additional)', () => {
+  let s = makeMatch();
+  s = applyCommand(s, { type: 'PROCESS_EXTRA', payload: { extraType: 'wide', additionalRuns: 1 }, ts: Date.now(), matchId: 'test' });
+  const inn = s.innings[0];
+  // 1 additionalRun is odd → swap
+  assertEqual(inn.strikerIndex, 1, 'strikerIndex swapped for odd wide additional runs');
+});
+
+// ── Scenario 4: Composite — 5-ball sequences ──────────────────────────────
+
+suite('Scenario 4: Composite 5-ball over sequence');
+
+test('dot, single, four, wicket, wide → correct cumulative totals', () => {
+  let s = makeMatch();
+  const cmd = (t, p) => ({ type: t, payload: p, ts: Date.now(), matchId: 'test' });
+
+  s = applyCommand(s, cmd('SCORE_RUNS',    { runs: 0 }));                                          // dot
+  s = applyCommand(s, cmd('SCORE_RUNS',    { runs: 1 }));                                          // single
+  s = applyCommand(s, cmd('SCORE_RUNS',    { runs: 4 }));                                          // four
+  s = applyCommand(s, cmd('HANDLE_WICKET', { dismissalType: 'bowled' }));                          // wicket
+  s = applyCommand(s, cmd('PROCESS_EXTRA', { extraType: 'wide', additionalRuns: 0 }));             // wide
+
+  const inn = s.innings[0];
+  // Runs: 0 + 1 + 4 + 0 (wicket) + 1 (wide) = 6
+  assertEqual(inn.totalRuns, 6, 'totalRuns after 5 events');
+  // Legal balls: dot(1) + single(1) + four(1) + wicket(1) + wide(0) = 4
+  assertEqual(inn.totalBalls, 4, 'totalBalls after 5 events (wide is not legal)');
+  assertEqual(inn.totalWickets, 1, 'totalWickets = 1');
+  assertEqual(inn.extras.wides, 1, 'extras.wides = 1');
+});
+
+test('6 legal balls: over complete, bowler overs increments', () => {
+  let s = makeMatch();
+  const run = (r) => applyCommand(s, { type: 'SCORE_RUNS', payload: { runs: r }, ts: Date.now(), matchId: 'test' });
+  s = run(0); s = run(1); s = run(2); s = run(3); s = run(4); s = run(6);
+
+  const inn = s.innings[0];
+  assertEqual(inn.totalBalls, 6, 'totalBalls = 6');
+  assertEqual(inn.bowlers[0].overs, 1, 'bowler overs = 1 after over complete');
+  assertEqual(inn.bowlers[0].ballsInOver, 0, 'bowler ballsInOver reset');
+  // At end of over, thisOver is reset
+  assertEqual(inn.thisOver.length, 0, 'thisOver reset after over');
+});
+
+test('SWAP_STRIKE: swaps striker and non-striker', () => {
+  let s = makeMatch();
+  const before = { striker: s.innings[0].strikerIndex, nonStriker: s.innings[0].nonStrikerIndex };
+  s = applyCommand(s, { type: 'SWAP_STRIKE', payload: {}, ts: Date.now(), matchId: 'test' });
+  assertEqual(s.innings[0].strikerIndex, before.nonStriker, 'new strikerIndex = old nonStrikerIndex');
+  assertEqual(s.innings[0].nonStrikerIndex, before.striker, 'new nonStrikerIndex = old strikerIndex');
+});
+
+// ── Render results ─────────────────────────────────────────────────────────
+
+const output = document.getElementById('output');
+const suites = [...new Set(results.map(r => r.suite))];
+
+let passed = 0, failed = 0;
+
+suites.forEach(suiteName => {
+  const div = document.createElement('div');
+  div.className = 'suite';
+  div.innerHTML = `<div class="suite-title">${suiteName}</div>`;
+  const suiteResults = results.filter(r => r.suite === suiteName);
+  suiteResults.forEach(r => {
+    const p = document.createElement('div');
+    p.className = `test ${r.pass ? 'pass' : 'fail'}`;
+    p.textContent = `  ${r.pass ? '✓' : '✗'} ${r.name}${r.error ? ' — ' + r.error : ''}`;
+    div.appendChild(p);
+    if (r.pass) passed++; else failed++;
+  });
+  output.appendChild(div);
+});
+
+const summary = document.getElementById('summary');
+summary.className = failed === 0 ? 'pass' : 'fail';
+summary.textContent = `${passed + failed} tests: ${passed} passed, ${failed} failed`;
+</script>
+</body>
+</html>
