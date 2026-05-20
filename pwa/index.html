@@ -24,11 +24,41 @@
     <!-- DEV4: User-supplied Supabase config (gitignored) -->
     <script src="/config.js"></script>
     <script>
-      // Service Worker Registration (Dev 1)
+      // HTML BUILD MARKER — visible immediately, proves index.html itself was refreshed.
+      window.__HTML_BUILD__ = '20260520-1950-fix3';
+      document.addEventListener('DOMContentLoaded', function () {
+        var el = document.createElement('div');
+        el.id = 'html-build-badge';
+        el.textContent = 'html ' + window.__HTML_BUILD__;
+        el.style.cssText = 'position:fixed;right:8px;bottom:8px;z-index:99999;padding:6px 10px;background:#ffd54f;color:#000;font:600 11px/1.2 system-ui,-apple-system,sans-serif;border-radius:999px;box-shadow:0 2px 8px rgba(0,0,0,0.4);';
+        document.body.appendChild(el);
+      });
+
+      // Service Worker Registration (Dev 1) — forces update check on every load,
+      // and auto-reloads once when a new SW takes control.
       if ('serviceWorker' in navigator) {
+        var _swReloaded = false;
+        navigator.serviceWorker.addEventListener('controllerchange', function () {
+          if (_swReloaded) return;
+          _swReloaded = true;
+          location.reload();
+        });
         window.addEventListener('load', function () {
           navigator.serviceWorker.register('/sw.js')
-            .then(function (reg) { console.log('[SW] registered:', reg.scope); })
+            .then(function (reg) {
+              console.log('[SW] registered:', reg.scope);
+              reg.update();
+              if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+              reg.addEventListener('updatefound', function () {
+                var nw = reg.installing;
+                if (!nw) return;
+                nw.addEventListener('statechange', function () {
+                  if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+                    nw.postMessage({ type: 'SKIP_WAITING' });
+                  }
+                });
+              });
+            })
             .catch(function (err) { console.warn('[SW] registration failed:', err); });
         });
       }
@@ -618,6 +648,6 @@
 
     <script src="app.js"></script>
     <!-- DEV1: Module entry point — bootstraps storage, sync, UI -->
-    <script type="module" src="/src/main.js"></script>
+    <script type="module" src="/src/main.js?v=20260520-1950-fix3"></script>
 </body>
 </html>
