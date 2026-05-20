@@ -1,6 +1,6 @@
 # Cricket Scorer — Agent Server
 
-Always-on Node.js server hosted on Railway. Serves the scoring UI (static files) and provides a REST + WebSocket API backed by Postgres.
+Always-on Node.js server hosted on Render. Serves the scoring UI (static files) and provides a REST + WebSocket API backed by Postgres.
 
 See [`docs/ARCHITECTURE_V2.md`](docs/ARCHITECTURE_V2.md) for full design rationale.
 
@@ -63,44 +63,43 @@ curl -s -X POST localhost:3000/api/tournaments \
 
 ---
 
-## How to Deploy to Railway
+## How to Deploy to Render
 
-### Prerequisites
-- [Railway CLI](https://docs.railway.app/develop/cli): `npm i -g @railway/cli`
-- A Railway account at https://railway.app
+This repo includes a `render.yaml` Blueprint that provisions both the web service and a managed Postgres database in one step.
 
-### Steps
+SSL/HTTPS is automatic on Render — your service gets a free `.onrender.com` TLS certificate. Custom domains are optional.
 
-```bash
-# 1. Authenticate
-railway login
+### Option A — One-Click via Blueprint (Recommended)
 
-# 2. Initialize a new Railway project (run once, from repo root)
-railway init
+1. Push `render.yaml` to your GitHub repo (already done by this PR).
+2. Go to [https://dashboard.render.com](https://dashboard.render.com) → **New +** → **Blueprint**.
+3. Connect the `getsureshv/Agent` GitHub repo.
+4. Render auto-detects `render.yaml` and shows a preview: `cricket-scorer` web service + `cricket-db` Postgres.
+5. Click **Apply** — both services are created automatically.
+6. After creation, go to **cricket-scorer → Environment** and set `ADMIN_PASSWORD` to a strong secret (it is intentionally not committed to the repo).
+7. Wait ~5 minutes for the first build. Migrations run automatically at boot — no separate migrate step needed.
+8. Visit your `.onrender.com` URL — you should see the Cricket Scoring UI.
+9. Verify: `curl https://<your-service>.onrender.com/api/health` → `{ "ok": true, "db": "connected", ... }`
 
-# 3. Add a managed Postgres database
-railway add --plugin postgresql
+### Option B — Manual Setup
 
-# 4. Deploy (builds via Dockerfile, streams logs)
-railway up
-
-# 5. (Optional) Open the deployed service in browser
-railway open
-```
-
-Railway automatically:
-- Injects `DATABASE_URL` from the Postgres plugin
-- Sets `PORT` (your server reads `process.env.PORT`)
-- Runs the health check at `/api/health`
-
-### Environment Variables to set in Railway dashboard
+1. Dashboard → **New +** → **PostgreSQL** — name it `cricket-db`, plan: Starter, region: Oregon.
+2. Dashboard → **New +** → **Web Service** — connect this repo, then set:
+   - **Build Command:** `npm ci`
+   - **Start Command:** `node server.js`
+   - **Health Check Path:** `/api/health`
+   - **Plan:** Starter
+3. Add environment variables:
 
 | Variable | Value |
 |---|---|
 | `NODE_ENV` | `production` |
 | `ADMIN_PASSWORD` | a strong secret string |
+| `DATABASE_URL` | Internal Database URL from the Postgres service |
 
-`DATABASE_URL` and `PORT` are injected automatically.
+`PORT` is injected automatically by Render.
+
+See [`docs/RENDER_DEPLOY.md`](docs/RENDER_DEPLOY.md) for the full step-by-step guide including notes on WebSocket support, cold-start behaviour, and Postgres plan recommendations.
 
 ---
 
@@ -164,7 +163,7 @@ Agent/
 ├── tests/
 │   └── api.test.js        # Documented curl smoke tests
 ├── Dockerfile             # node:20-alpine production image
-├── railway.json           # Railway deployment config
+├── render.yaml            # Render Blueprint (web service + Postgres)
 ├── .env.example           # Environment variable template
 └── docs/
     └── ARCHITECTURE_V2.md # Full server architecture spec

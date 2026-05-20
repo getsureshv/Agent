@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: cricket-scorer
+    env: node
+    plan: starter
+    region: oregon
+    branch: claude/cricket-scoring-app-FjJPG
+    buildCommand: npm ci
+    startCommand: node server.js
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: ADMIN_PASSWORD
+        generateValue: true
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cricket-db
+          property: connectionString
+
+databases:
+  - name: cricket-db
+    plan: starter
+    region: oregon
