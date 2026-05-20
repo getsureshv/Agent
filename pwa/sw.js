@@ -7,7 +7,7 @@
  */
 
 // Bump CACHE_VERSION to evict old app-shell assets on next activate.
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3-20260520-1950';
 
 const CACHE_APP_SHELL      = 'app-shell-' + CACHE_VERSION;
 const CACHE_VENDOR_MP      = 'vendor-mediapipe-v1';                  // big binaries — don't re-download on every bump

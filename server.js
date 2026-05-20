@@ -126,12 +126,25 @@ app.get('/pwa/manifest.json', (req, res) => {
 });
 
 // Serve PWA static assets (CSS, JS, icons, sw.js, …)
+// IMPORTANT: sw.js and index.html must NEVER be cached by intermediaries or the browser,
+// otherwise PWA updates can take hours/days to reach installed clients.
 app.use('/pwa', express.static(path.join(__dirname, 'pwa'), {
   dotfiles: 'ignore',
+  setHeaders: (res, filePath) => {
+    const base = path.basename(filePath);
+    if (base === 'sw.js' || base === 'index.html') {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+  },
 }));
 
 // SPA fallback — any unmatched /pwa/* route gets the PWA shell
 app.get('/pwa/*', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   res.sendFile(path.join(__dirname, 'pwa', 'index.html'));
 });
 

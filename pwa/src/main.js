@@ -11,6 +11,57 @@
  * other devs' modules have not landed yet.
  */
 
+// ─── Build Badge (proves which code is running on-device) ─────────────────────
+// Visible chip in the bottom-left corner. Tap to clear caches + reload.
+const BUILD_TAG = '20260520-1950-fix3';
+window.__BUILD_TAG__ = BUILD_TAG;
+
+function _mountBuildBadge() {
+  if (document.getElementById('build-badge')) return;
+  const el = document.createElement('div');
+  el.id = 'build-badge';
+  el.textContent = 'build ' + BUILD_TAG + ' · tap to reset';
+  Object.assign(el.style, {
+    position: 'fixed',
+    left: '8px',
+    bottom: '8px',
+    zIndex: '99999',
+    padding: '6px 10px',
+    background: '#4fc3f7',
+    color: '#000',
+    font: '600 11px/1.2 system-ui, -apple-system, sans-serif',
+    borderRadius: '999px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+    cursor: 'pointer',
+    maxWidth: '60vw',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  });
+  el.addEventListener('click', async () => {
+    el.textContent = 'resetting…';
+    try {
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.unregister()));
+      }
+      if (window.caches) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((k) => caches.delete(k)));
+      }
+    } catch (e) { console.warn('[badge] reset failed', e); }
+    location.reload();
+  });
+  document.body.appendChild(el);
+  console.log('[main] BUILD_TAG =', BUILD_TAG);
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', _mountBuildBadge);
+} else {
+  _mountBuildBadge();
+}
+
 // ─── Module Imports ──────────────────────────────────────────────────────────
 
 let initDB, startSyncEngine, initUI;
