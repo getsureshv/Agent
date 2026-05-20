@@ -7,7 +7,7 @@
  */
 
 // Bump CACHE_VERSION to evict old app-shell assets on next activate.
-const CACHE_VERSION = 'v3-20260520-1950';
+const CACHE_VERSION = 'v4-20260520-1955';
 
 const CACHE_APP_SHELL      = 'app-shell-' + CACHE_VERSION;
 const CACHE_VENDOR_MP      = 'vendor-mediapipe-v1';                  // big binaries — don't re-download on every bump
@@ -17,19 +17,20 @@ const CACHE_VOSK_MODEL     = 'vosk-model-v1';                        // populate
 // All known caches — anything not in this list will be deleted on activate
 const ALL_CACHES = [CACHE_APP_SHELL, CACHE_VENDOR_MP, CACHE_API, CACHE_VOSK_MODEL];
 
-// App-shell assets to precache on install
+// App-shell assets to precache on install. PWA is mounted at /pwa/ on the
+// Agent base, so all asset paths must be prefixed accordingly.
 const APP_SHELL_ASSETS = [
-  '/',
-  '/index.html',
-  '/styles.css',
-  '/manifest.json',
-  '/icons/icon-48.png',
-  '/icons/icon-72.png',
-  '/icons/icon-96.png',
-  '/icons/icon-144.png',
-  '/icons/icon-180.png',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
+  '/pwa/',
+  '/pwa/index.html',
+  '/pwa/styles.css',
+  '/pwa/manifest.json',
+  '/pwa/icons/icon-48.png',
+  '/pwa/icons/icon-72.png',
+  '/pwa/icons/icon-96.png',
+  '/pwa/icons/icon-144.png',
+  '/pwa/icons/icon-180.png',
+  '/pwa/icons/icon-192.png',
+  '/pwa/icons/icon-512.png',
 ];
 
 // ─── Install ────────────────────────────────────────────────────────────────
@@ -68,14 +69,14 @@ self.addEventListener('fetch', (event) => {
   // Only handle http(s) requests
   if (!url.protocol.startsWith('http')) return;
 
-  // 1. /vendor/mediapipe/** → Cache First (CACHE_VENDOR_MP)
-  if (url.pathname.startsWith('/vendor/mediapipe/')) {
+  // 1. /pwa/vendor/mediapipe/** → Cache First (CACHE_VENDOR_MP)
+  if (url.pathname.startsWith('/pwa/vendor/mediapipe/')) {
     event.respondWith(cacheFirst(request, CACHE_VENDOR_MP));
     return;
   }
 
-  // 2. /vendor/vosk/** → Cache First if model cache exists (populated by Dev 3)
-  if (url.pathname.startsWith('/vendor/vosk/')) {
+  // 2. /pwa/vendor/vosk/** → Cache First if model cache exists (populated by Dev 3)
+  if (url.pathname.startsWith('/pwa/vendor/vosk/')) {
     event.respondWith(
       caches.match(request).then((cached) => cached || fetch(request))
     );
@@ -94,26 +95,28 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 4a. JS/HTML/CSS app code → Stale-While-Revalidate so code updates ship on next load
+  // 4a. PWA JS/HTML/CSS app code → Stale-While-Revalidate so code updates ship on next load
   //     without requiring a CACHE_VERSION bump.
   if (
     url.origin === self.location.origin &&
     (
-      url.pathname === '/' ||
-      url.pathname === '/index.html' ||
-      url.pathname === '/styles.css' ||
-      url.pathname === '/manifest.json' ||
-      url.pathname.startsWith('/src/')
+      url.pathname === '/pwa/' ||
+      url.pathname === '/pwa/index.html' ||
+      url.pathname === '/pwa/styles.css' ||
+      url.pathname === '/pwa/manifest.json' ||
+      url.pathname === '/pwa/config.js' ||
+      url.pathname === '/pwa/app.js' ||
+      url.pathname.startsWith('/pwa/src/')
     )
   ) {
     event.respondWith(staleWhileRevalidate(request, CACHE_APP_SHELL));
     return;
   }
 
-  // 4b. Icons — truly static, safe to cache-first
+  // 4b. PWA Icons — truly static, safe to cache-first
   if (
     url.origin === self.location.origin &&
-    url.pathname.startsWith('/icons/')
+    url.pathname.startsWith('/pwa/icons/')
   ) {
     event.respondWith(cacheFirst(request, CACHE_APP_SHELL));
     return;
