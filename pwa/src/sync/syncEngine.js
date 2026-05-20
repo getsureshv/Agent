@@ -47,7 +47,7 @@ import {
 
 export { appendToOutbox };   // re-export so callers only need this module
 export { setSyncState };     // re-export for convenience
-export { pullChanges };      // pull-on-focus / pull-on-online
+// NOTE: pullChanges is declared as `export async function` below — do NOT re-export here.
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const BATCH_SIZE = 50;
