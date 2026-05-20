@@ -1,0 +1,179 @@
+/**
+ * Cricket Scorer — Service Worker
+ * Dev 1: PWA Shell
+ *
+ * Cache names — do NOT change these strings without bumping CACHE_VERSION.
+ * Other devs reference these names directly (especially 'vosk-model-v1').
+ */
+
+const CACHE_VERSION = 'v1';
+
+const CACHE_APP_SHELL      = 'app-shell-v1';
+const CACHE_VENDOR_MP      = 'vendor-mediapipe-v1';
+const CACHE_API            = 'api-v1';             // was: supabase-api-v1
+const CACHE_VOSK_MODEL     = 'vosk-model-v1';  // NOT precached — populated by Dev 3's downloadVoskModel()
+
+// All known caches — anything not in this list will be deleted on activate
+const ALL_CACHES = [CACHE_APP_SHELL, CACHE_VENDOR_MP, CACHE_API, CACHE_VOSK_MODEL];
+
+// App-shell assets to precache on install
+const APP_SHELL_ASSETS = [
+  '/',
+  '/index.html',
+  '/styles.css',
+  '/manifest.json',
+  '/icons/icon-48.png',
+  '/icons/icon-72.png',
+  '/icons/icon-96.png',
+  '/icons/icon-144.png',
+  '/icons/icon-180.png',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
+];
+
+// ─── Install ────────────────────────────────────────────────────────────────
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_APP_SHELL)
+      .then((cache) => cache.addAll(APP_SHELL_ASSETS))
+      .then(() => self.skipWaiting())
+  );
+});
+
+// ─── Activate ───────────────────────────────────────────────────────────────
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys()
+      .then((keys) =>
+        Promise.all(
+          keys
+            .filter((key) => !ALL_CACHES.includes(key))
+            .map((key) => caches.delete(key))
+        )
+      )
+      .then(() => self.clients.claim())
+      .then(() => notifyClients(navigator.onLine ? 'app:online' : 'app:offline'))
+  );
+});
+
+// ─── Fetch ──────────────────────────────────────────────────────────────────
+
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  const url = new URL(request.url);
+
+  // Only handle http(s) requests
+  if (!url.protocol.startsWith('http')) return;
+
+  // 1. /vendor/mediapipe/** → Cache First (CACHE_VENDOR_MP)
+  if (url.pathname.startsWith('/vendor/mediapipe/')) {
+    event.respondWith(cacheFirst(request, CACHE_VENDOR_MP));
+    return;
+  }
+
+  // 2. /vendor/vosk/** → Cache First if model cache exists (populated by Dev 3)
+  if (url.pathname.startsWith('/vendor/vosk/')) {
+    event.respondWith(
+      caches.match(request).then((cached) => cached || fetch(request))
+    );
+    return;
+  }
+
+  // 3. Agent base API GET requests → Stale-While-Revalidate (CACHE_API)
+  //    Matches requests to BASE_URL/api/** or any origin with /api/ in the path.
+  const configBase = (self.__APP_CONFIG__?.BASE_URL ?? '').replace(/\/$/, '');
+  const isApiRequest = request.method === 'GET' && (
+    (configBase && url.href.startsWith(configBase + '/api/')) ||
+    url.pathname.startsWith('/api/')
+  );
+  if (isApiRequest) {
+    event.respondWith(staleWhileRevalidate(request, CACHE_API));
+    return;
+  }
+
+  // 4. App-shell assets: index.html, styles.css, src/**, manifest.json, icons/ → Cache First
+  if (
+    url.origin === self.location.origin &&
+    (
+      url.pathname === '/' ||
+      url.pathname === '/index.html' ||
+      url.pathname === '/styles.css' ||
+      url.pathname === '/manifest.json' ||
+      url.pathname.startsWith('/src/') ||
+      url.pathname.startsWith('/icons/')
+    )
+  ) {
+    event.respondWith(cacheFirst(request, CACHE_APP_SHELL));
+    return;
+  }
+
+  // 5. Everything else — network only (no caching)
+});
+
+// ─── Strategies ─────────────────────────────────────────────────────────────
+
+/**
+ * Cache First: serve from cache; if missing, fetch → cache → return.
+ */
+async function cacheFirst(request, cacheName) {
+  const cache = await caches.open(cacheName);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch (err) {
+    // Network failed and nothing in cache — return a simple offline response
+    return new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
+  }
+}
+
+/**
+ * Stale-While-Revalidate: serve cached version immediately while fetching update.
+ * Used for Agent base REST GET responses.
+ */
+async function staleWhileRevalidate(request, cacheName) {
+  const cache = await caches.open(cacheName);
+  const cached = await cache.match(request);
+
+  const fetchPromise = fetch(request).then((response) => {
+    if (response.ok) {
+      cache.put(request, response.clone());
+    }
+    return response;
+  }).catch(() => null);
+
+  return cached || fetchPromise || new Response('Offline', { status: 503 });
+}
+
+// ─── Online / Offline Detection ─────────────────────────────────────────────
+
+self.addEventListener('online', () => notifyClients('app:online'));
+self.addEventListener('offline', () => notifyClients('app:offline'));
+
+/**
+ * Broadcast a message type to all controlled clients.
+ * main.js receives these and re-dispatches as window events.
+ */
+async function notifyClients(type) {
+  const clients = await self.clients.matchAll({ includeUncontrolled: true });
+  clients.forEach((client) => client.postMessage({ type }));
+}
+
+// ─── Message Handler ────────────────────────────────────────────────────────
+
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+  // Dev 4's SyncEngine can send 'CHECK_ONLINE' to request current status
+  if (event.data && event.data.type === 'CHECK_ONLINE') {
+    notifyClients(navigator.onLine ? 'app:online' : 'app:offline');
+  }
+});

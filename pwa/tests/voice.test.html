@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Voice Recognition Test — Cricket Scorer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0d1117; color: #e6edf3;
+      margin: 0; padding: 24px;
+      max-width: 640px; margin-inline: auto;
+    }
+    h1 { font-size: 1.25rem; margin: 0 0 4px; }
+    .subtitle { color: #8b949e; font-size: 0.85rem; margin: 0 0 24px; }
+    section { margin-bottom: 28px; }
+    h2 { font-size: 0.95rem; text-transform: uppercase; letter-spacing: .08em;
+         color: #8b949e; margin: 0 0 10px; }
+    button {
+      padding: 10px 18px; border: none; border-radius: 8px;
+      font-size: 0.9rem; cursor: pointer; margin-right: 8px; margin-bottom: 8px;
+    }
+    .btn-primary   { background: #1a237e; color: #fff; }
+    .btn-primary:hover { background: #283593; }
+    .btn-success   { background: #1b5e20; color: #fff; }
+    .btn-success:hover { background: #2e7d32; }
+    .btn-danger    { background: #b71c1c; color: #fff; }
+    .btn-danger:hover { background: #c62828; }
+    .btn-secondary { background: #161b22; color: #e6edf3; border: 1px solid #30363d; }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    .progress-wrap { height: 6px; background: #161b22; border-radius: 4px;
+                     overflow: hidden; margin-top: 8px; display: none; }
+    .progress-bar  { height: 100%; background: #1a237e; width: 0;
+                     transition: width 0.3s; border-radius: 4px; }
+    .log {
+      background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+      padding: 12px; min-height: 80px; max-height: 320px; overflow-y: auto;
+      font-size: 0.82rem; font-family: monospace; line-height: 1.5;
+    }
+    .log .partial  { color: #8b949e; }
+    .log .final    { color: #58a6ff; }
+    .log .command  { color: #3fb950; font-weight: 600; }
+    .log .error    { color: #f85149; }
+    .log .info     { color: #e6edf3; }
+    .log .dim      { color: #6e7681; }
+    .status-badge {
+      display: inline-block; padding: 3px 10px; border-radius: 12px;
+      font-size: 0.78rem; font-weight: 600; margin-bottom: 8px;
+    }
+    .badge-idle       { background: #21262d; color: #8b949e; }
+    .badge-loading    { background: #1a237e; color: #90caf9; }
+    .badge-listening  { background: #1b5e20; color: #a5d6a7; animation: pulse 1s infinite; }
+    .badge-error      { background: #b71c1c; color: #ffcdd2; }
+    .badge-ready      { background: #1b5e20; color: #a5d6a7; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .6; } }
+  </style>
+</head>
+<body>
+
+<h1>Voice Recognition Test</h1>
+<p class="subtitle">Dev 3 — Vosk offline voice + UnifiedRecognizer quick-test page</p>
+
+<!-- ─── 1. Vosk Model Download ─────────────────────────────────────────── -->
+<section>
+  <h2>1. Vosk Model</h2>
+  <div id="model-status" class="status-badge badge-idle">Not loaded</div>
+  <br>
+  <button class="btn-primary"   id="btn-download">⬇ Download offline model (~40 MB)</button>
+  <button class="btn-secondary" id="btn-check-cache">Check cache</button>
+  <button class="btn-danger"    id="btn-clear-cache">Clear cache</button>
+  <div class="progress-wrap" id="progress-wrap">
+    <div class="progress-bar" id="progress-bar"></div>
+  </div>
+  <div id="model-log" class="log" style="margin-top:8px;min-height:40px;"></div>
+</section>
+
+<!-- ─── 2. Recognition ───────────────────────────────────────────────── -->
+<section>
+  <h2>2. Speech Recognition</h2>
+  <div id="recog-status" class="status-badge badge-idle">Idle</div>
+  <br>
+  <button class="btn-success" id="btn-speak">🎙 Speak</button>
+  <button class="btn-danger"  id="btn-stop" disabled>■ Stop</button>
+  <p style="font-size:.8rem;color:#8b949e;margin:6px 0 8px;">
+    If model is cached → uses Vosk (offline).
+    Otherwise falls back to webkitSpeechRecognition.
+  </p>
+  <div id="recog-log" class="log"></div>
+</section>
+
+<!-- ─── 3. Command Parser ─────────────────────────────────────────────── -->
+<section>
+  <h2>3. Command Parser</h2>
+  <p style="font-size:.8rem;color:#8b949e;margin:0 0 8px;">
+    Type or paste transcript text to test <code>parseVoiceCommand()</code>.
+  </p>
+  <input type="text" id="cmd-input" placeholder='e.g. "wicked" or "four" or "no bull"'
+    style="width:100%;padding:8px 12px;background:#161b22;border:1px solid #30363d;
+           border-radius:6px;color:#e6edf3;font-size:0.9rem;margin-bottom:8px;" />
+  <button class="btn-secondary" id="btn-parse">Parse</button>
+  <div id="cmd-log" class="log" style="margin-top:8px;min-height:40px;"></div>
+</section>
+
+<!-- ─── Vendor scripts ───────────────────────────────────────────────── -->
+<script src="/vendor/vosk/fflate.js"></script>
+
+<script type="module">
+  import { downloadVoskModel, isVoskReady, ensureVoskLoaded } from '/src/voice/vosk.js';
+  import { createRecognition }                                 from '/src/voice/recognition.js';
+  import { parseVoiceCommand, normalizeTranscript }            from '/src/voice/commands.js';
+
+  // ── Utilities ────────────────────────────────────────────────────────
+  function logTo(containerId, msg, cls = 'info') {
+    const el = document.getElementById(containerId);
+    const line = document.createElement('div');
+    line.className = cls;
+    line.textContent = new Date().toLocaleTimeString() + '  ' + msg;
+    el.appendChild(line);
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function setStatus(id, text, cls) {
+    const el = document.getElementById(id);
+    el.textContent = text;
+    el.className = 'status-badge ' + cls;
+  }
+
+  // ── 1. Vosk Model ────────────────────────────────────────────────────
+  const btnDownload  = document.getElementById('btn-download');
+  const btnCheck     = document.getElementById('btn-check-cache');
+  const btnClear     = document.getElementById('btn-clear-cache');
+  const progressWrap = document.getElementById('progress-wrap');
+  const progressBar  = document.getElementById('progress-bar');
+
+  async function checkModelCache() {
+    try {
+      const cache = await caches.open('vosk-model-v1');
+      const keys  = await cache.keys();
+      if (keys.length > 0) {
+        setStatus('model-status', `Cached (${keys.length} files)`, 'badge-ready');
+        logTo('model-log', `Model cache: ${keys.length} entries.`, 'info');
+        btnDownload.textContent = '✓ Model already downloaded';
+        btnDownload.disabled = true;
+      } else {
+        setStatus('model-status', 'Not cached', 'badge-idle');
+        logTo('model-log', 'No model in cache.', 'dim');
+        btnDownload.disabled = false;
+        btnDownload.textContent = '⬇ Download offline model (~40 MB)';
+      }
+    } catch (e) {
+      logTo('model-log', 'Cache API not available: ' + e.message, 'error');
+    }
+  }
+
+  await checkModelCache();
+
+  btnDownload.addEventListener('click', async () => {
+    btnDownload.disabled = true;
+    progressWrap.style.display = 'block';
+    progressBar.style.width = '0%';
+    setStatus('model-status', 'Downloading…', 'badge-loading');
+    logTo('model-log', 'Starting model download from alphacephei.com …', 'info');
+
+    try {
+      await downloadVoskModel((pct) => {
+        progressBar.style.width = pct + '%';
+        if (pct % 10 === 0) logTo('model-log', `Download progress: ${pct}%`, 'dim');
+      });
+      progressBar.style.width = '100%';
+      setStatus('model-status', 'Ready (offline)', 'badge-ready');
+      logTo('model-log', '✓ Model downloaded and cached successfully.', 'command');
+      btnDownload.textContent = '✓ Model ready';
+    } catch (e) {
+      if (e.message === 'ALREADY_DOWNLOADED') {
+        logTo('model-log', 'Model already in cache.', 'info');
+        setStatus('model-status', 'Already cached', 'badge-ready');
+      } else {
+        setStatus('model-status', 'Download failed', 'badge-error');
+        logTo('model-log', 'Error: ' + e.message, 'error');
+        btnDownload.disabled = false;
+        btnDownload.textContent = '⬇ Retry download';
+      }
+    }
+  });
+
+  btnCheck.addEventListener('click', checkModelCache);
+
+  btnClear.addEventListener('click', async () => {
+    const deleted = await caches.delete('vosk-model-v1');
+    logTo('model-log', deleted ? 'Cache cleared.' : 'Cache was already empty.', 'info');
+    await checkModelCache();
+  });
+
+  // ── 2. Recognition ───────────────────────────────────────────────────
+  const btnSpeak  = document.getElementById('btn-speak');
+  const btnStop   = document.getElementById('btn-stop');
+  let recog = null;
+
+  btnSpeak.addEventListener('click', () => {
+    recog = createRecognition();
+    recog.interimResults = true;   // show partials in this test page
+
+    recog.onstart = () => {
+      setStatus('recog-status', 'Listening…', 'badge-listening');
+      logTo('recog-log', '🎙 Recognition started', 'info');
+      btnSpeak.disabled = true;
+      btnStop.disabled  = false;
+    };
+
+    recog.onresult = (e) => {
+      const res    = e.results[0][0];
+      const isFinal = e.results[0].isFinal;
+      if (isFinal) {
+        logTo('recog-log', `FINAL: "${res.transcript}"`, 'final');
+        // Auto-parse the final transcript
+        const cmd = parseVoiceCommand(res.transcript);
+        if (cmd) {
+          logTo('recog-log', `CMD → ${JSON.stringify(cmd)}`, 'command');
+        } else {
+          logTo('recog-log', 'CMD → (no command matched)', 'dim');
+        }
+      } else {
+        logTo('recog-log', `partial: "${res.transcript}"`, 'partial');
+      }
+    };
+
+    recog.onerror = (e) => {
+      setStatus('recog-status', 'Error: ' + e.error, 'badge-error');
+      logTo('recog-log', 'Error: ' + (e.message || e.error), 'error');
+      btnSpeak.disabled = false;
+      btnStop.disabled  = true;
+    };
+
+    recog.onend = () => {
+      setStatus('recog-status', 'Idle', 'badge-idle');
+      logTo('recog-log', 'Recognition ended.', 'dim');
+      btnSpeak.disabled = false;
+      btnStop.disabled  = true;
+    };
+
+    recog.start();
+  });
+
+  btnStop.addEventListener('click', () => {
+    recog?.stop();
+  });
+
+  // ── 3. Command Parser ────────────────────────────────────────────────
+  const cmdInput = document.getElementById('cmd-input');
+  const btnParse = document.getElementById('btn-parse');
+
+  function runParse() {
+    const raw = cmdInput.value.trim();
+    if (!raw) return;
+    const normalized = normalizeTranscript(raw);
+    const cmd        = parseVoiceCommand(raw);
+    logTo('cmd-log', `input:      "${raw}"`,        'dim');
+    logTo('cmd-log', `normalized: "${normalized}"`, 'partial');
+    if (cmd) {
+      logTo('cmd-log', `result:     ${JSON.stringify(cmd)}`, 'command');
+    } else {
+      logTo('cmd-log', 'result:     null (no match)', 'error');
+    }
+    logTo('cmd-log', '─'.repeat(40), 'dim');
+  }
+
+  btnParse.addEventListener('click', runParse);
+  cmdInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') runParse(); });
+
+  // Pre-populate some examples
+  const examples = ['four', 'wicked', 'no bull two runs', 'court out', 'and do', 'wide', 'six'];
+  const exWrap = document.createElement('div');
+  exWrap.style.marginBottom = '8px';
+  examples.forEach(ex => {
+    const b = document.createElement('button');
+    b.className = 'btn-secondary';
+    b.style.fontSize = '.78rem';
+    b.style.padding = '4px 10px';
+    b.textContent = ex;
+    b.onclick = () => { cmdInput.value = ex; runParse(); };
+    exWrap.appendChild(b);
+  });
+  cmdInput.parentNode.insertBefore(exWrap, cmdInput);
+</script>
+</body>
+</html>

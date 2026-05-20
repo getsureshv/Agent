@@ -1,0 +1,649 @@
+/**
+ * src/ui/mobile.css — Dev 5
+ * Mobile-first additions:
+ *   - Touch targets ≥ 44px
+ *   - 100dvh instead of 100vh
+ *   - env(safe-area-inset-*) padding
+ *   - Landscape umpire-cam layout
+ *   - Sync icon styles
+ *   - Settings / sign-in screen styles
+ *
+ * Loaded via @import in styles.css (OR <link> added by Dev 1).
+ * Does NOT modify any existing styles.css rules.
+ */
+
+/* ── Base mobile resets ─────────────────────────────────────────────────── */
+
+:root {
+  /* Override vh units to use dvh for mobile browsers */
+  --app-height: 100dvh;
+  /* Safe area insets (notch / home indicator) */
+  --safe-top:    env(safe-area-inset-top,    0px);
+  --safe-right:  env(safe-area-inset-right,  0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left:   env(safe-area-inset-left,   0px);
+}
+
+/* Replace any 100vh usage with 100dvh */
+html, body {
+  min-height: 100dvh;
+}
+
+#app {
+  min-height: 100dvh;
+  padding-bottom: var(--safe-bottom);
+}
+
+/* ── Touch targets — all interactive elements ≥ 44 × 44px ─────────────── */
+
+button,
+.btn,
+input[type="button"],
+input[type="submit"],
+.tab-btn,
+.chat-fab,
+.voice-mic-btn,
+.bowler-tap-hint,
+.batsman-tap-hint,
+.modal-close,
+.chat-topic-btn,
+.chat-back-btn,
+.squad-player-row,
+.player-list-btn,
+.btn-wicket-type,
+.btn-run,
+.btn-extra,
+.btn-wicket,
+.btn-extra-run,
+[role="button"] {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Slightly larger run buttons for precise scoring in the field */
+.btn-run,
+.btn-extra,
+.btn-wicket {
+  min-height: 52px;
+  font-size: 1.05rem;
+}
+
+/* Scoring grid should fill width comfortably */
+.btn-grid {
+  gap: 10px;
+}
+
+/* ── Safe area padding for headers and footers ─────────────────────────── */
+
+.match-header,
+.home-header {
+  padding-top: calc(8px + var(--safe-top));
+  padding-left: calc(12px + var(--safe-left));
+  padding-right: calc(12px + var(--safe-right));
+}
+
+.home-actions,
+.player-entry-actions,
+.home-actions:last-child {
+  padding-bottom: calc(16px + var(--safe-bottom));
+}
+
+/* ── Sync indicator ─────────────────────────────────────────────────────── */
+
+.sync-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: background 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
+}
+
+.sync-status:active {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Cloud spinning animation for syncing state */
+@keyframes sync-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.sync-spin {
+  animation: sync-spin 1.2s linear infinite;
+  transform-origin: center;
+}
+
+/* State-specific tints on the indicator wrapper */
+.sync-status[data-sync-state="offline"] { color: #9e9e9e; }
+.sync-status[data-sync-state="pending"] { color: #ff9800; }
+.sync-status[data-sync-state="syncing"] { color: #42a5f5; }
+.sync-status[data-sync-state="synced"]  { color: #66bb6a; }
+.sync-status[data-sync-state="error"]   { color: #ef5350; }
+
+/* Sync modal */
+.sync-modal-content {
+  max-width: 340px;
+  text-align: center;
+}
+
+.sync-modal-title {
+  font-size: 1.1rem;
+  margin-bottom: 8px;
+}
+
+.sync-modal-state {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.sync-modal-state[data-sync-state="offline"] { color: #9e9e9e; }
+.sync-modal-state[data-sync-state="pending"] { color: #ff9800; }
+.sync-modal-state[data-sync-state="syncing"] { color: #42a5f5; }
+.sync-modal-state[data-sync-state="synced"]  { color: #66bb6a; }
+.sync-modal-state[data-sync-state="error"]   { color: #ef5350; }
+
+.sync-modal-time {
+  font-size: 0.82rem;
+  color: #78909c;
+  margin-bottom: 16px;
+}
+
+/* ── Landscape orientation — umpire cam on right 40%, scoreboard left ── */
+
+@media (orientation: landscape) and (max-height: 600px) {
+
+  #scoring-screen {
+    display: grid;
+    grid-template-columns: 60% 40%;
+    grid-template-rows: auto;
+    gap: 0;
+    overflow: hidden;
+    height: 100dvh;
+  }
+
+  /* Left column: full scoring UI */
+  .match-header,
+  .batsmen-panel,
+  .bowler-panel,
+  .extras-display,
+  .this-over,
+  .last-over,
+  .scoring-controls {
+    grid-column: 1;
+  }
+
+  /* Right column: umpire cam panel */
+  #umpire-cam-panel {
+    grid-column: 2;
+    grid-row: 1 / -1;
+    height: 100dvh;
+    overflow-y: auto;
+    border-left: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .umpire-video-container {
+    width: 100%;
+    height: auto;
+  }
+
+  /* Compact controls in landscape */
+  .btn-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .scoring-controls {
+    overflow-y: auto;
+    max-height: calc(100dvh - 80px);
+    padding-right: 4px;
+  }
+}
+
+/* ── Settings screen ─────────────────────────────────────────────────── */
+
+#settings-screen {
+  padding: 16px;
+  padding-top: calc(16px + var(--safe-top));
+  padding-bottom: calc(16px + var(--safe-bottom));
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.settings-section {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.settings-section h2 {
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #4fc3f7;
+  margin-bottom: 12px;
+}
+
+#download-voice-btn {
+  width: 100%;
+}
+
+#voice-download-progress {
+  display: none;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  height: 8px;
+  margin-top: 10px;
+  overflow: hidden;
+}
+
+#voice-download-fill {
+  height: 100%;
+  background: #42a5f5;
+  width: 0%;
+  transition: width 0.3s ease;
+  border-radius: 4px;
+}
+
+#voice-download-text {
+  font-size: 0.8rem;
+  color: #90a4ae;
+  margin-top: 4px;
+  text-align: center;
+}
+
+#voice-model-size {
+  font-size: 0.78rem;
+  color: #66bb6a;
+  margin-top: 4px;
+}
+
+#signin-nag {
+  display: none;
+  padding: 10px;
+  background: rgba(255, 152, 0, 0.12);
+  border-left: 3px solid #ff9800;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  color: #ff9800;
+  cursor: pointer;
+  margin-top: 8px;
+}
+
+/* ── Sign-in screen ──────────────────────────────────────────────────── */
+
+#signin-screen {
+  padding: 24px 16px;
+  padding-top: calc(24px + var(--safe-top));
+  padding-bottom: calc(24px + var(--safe-bottom));
+  max-width: 480px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.signin-logo {
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.signin-subtitle {
+  text-align: center;
+  color: #78909c;
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+}
+
+#signin-email-input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.signin-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.signin-status {
+  font-size: 0.85rem;
+  padding: 8px;
+  border-radius: 6px;
+  text-align: center;
+}
+
+.signin-status.success {
+  background: rgba(102, 187, 106, 0.12);
+  color: #66bb6a;
+}
+
+.signin-status.error {
+  background: rgba(239, 83, 80, 0.12);
+  color: #ef5350;
+}
+
+.signin-anon-note {
+  text-align: center;
+  font-size: 0.8rem;
+  color: #546e7a;
+}
+
+/* ── Home header sync indicator placement ───────────────────────────── */
+
+.home-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-right: var(--safe-right);
+}
+
+/* ── Scorecard modal scroll fix on small screens ────────────────────── */
+
+#scorecard-modal .modal-content {
+  max-height: calc(100dvh - 32px - var(--safe-top) - var(--safe-bottom));
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Squad select modal scroll ──────────────────────────────────────── */
+
+#squad-select-modal .modal-content {
+  max-height: calc(100dvh - 32px - var(--safe-top) - var(--safe-bottom));
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── modal-open body lock ───────────────────────────────────────────── */
+
+body.modal-open {
+  overflow: hidden;
+}
+
+/* ── Tournament card layout ─────────────────────────────────────────── */
+
+.tournament-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  margin-bottom: 8px;
+  gap: 10px;
+}
+
+.tournament-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tournament-card-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tournament-card-meta {
+  font-size: 0.75rem;
+  color: #78909c;
+}
+
+.tournament-card-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* ── Fixture card layout ────────────────────────────────────────────── */
+
+.fixture-card {
+  padding: 14px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  margin-bottom: 10px;
+  border-left: 3px solid transparent;
+}
+
+.fixture-card.fixture-played { border-left-color: #66bb6a; opacity: 0.75; }
+.fixture-card.fixture-in-progress { border-left-color: #42a5f5; }
+
+.fixture-teams {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.fixture-vs {
+  font-size: 0.75rem;
+  color: #546e7a;
+  font-weight: 400;
+}
+
+.fixture-live { color: #42a5f5; font-size: 0.82rem; margin-bottom: 6px; }
+.fixture-result { color: #66bb6a; font-size: 0.82rem; margin-bottom: 6px; }
+.fixture-actions { margin-top: 6px; }
+
+/* ── Points table ───────────────────────────────────────────────────── */
+
+.points-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.points-table th {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  color: #4fc3f7;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.points-table td {
+  padding: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.points-table .team-name-cell {
+  font-weight: 600;
+}
+
+/* ── Scorecard table ────────────────────────────────────────────────── */
+
+.scorecard-innings {
+  margin-bottom: 20px;
+}
+
+.scorecard-innings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.scorecard-team { font-weight: 700; font-size: 1rem; }
+.scorecard-score { font-size: 1.1rem; color: #4fc3f7; font-weight: 600; }
+
+.scorecard-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  margin-bottom: 8px;
+}
+
+.scorecard-table th {
+  text-align: right;
+  padding: 4px 6px;
+  color: #546e7a;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
+.scorecard-table th:first-child,
+.scorecard-table td:first-child { text-align: left; }
+
+.scorecard-table td {
+  padding: 5px 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  text-align: right;
+}
+
+.scorecard-name { font-weight: 500; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scorecard-dismissal { font-size: 0.72rem; color: #78909c; }
+.scorecard-extras { font-size: 0.78rem; color: #546e7a; margin: 4px 0 12px; }
+
+/* ── Player detail stats ────────────────────────────────────────────── */
+
+.player-detail-stats {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.stat-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 10px 14px;
+  min-width: 56px;
+}
+
+.stat-pill span { font-size: 1.2rem; font-weight: 700; }
+.stat-pill label { font-size: 0.7rem; color: #78909c; text-transform: uppercase; margin-top: 2px; }
+
+/* ── Ball timeline ──────────────────────────────────────────────────── */
+
+.ball-timeline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* ── Over history ───────────────────────────────────────────────────── */
+
+.over-history-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  font-size: 0.85rem;
+}
+
+.over-number { color: #546e7a; min-width: 52px; }
+.over-runs { color: #4fc3f7; min-width: 54px; }
+.over-balls { display: flex; flex-wrap: wrap; gap: 4px; }
+
+/* ── Danger button ──────────────────────────────────────────────────── */
+
+.btn-danger {
+  background: rgba(239, 83, 80, 0.15);
+  color: #ef5350;
+  border: 1px solid rgba(239, 83, 80, 0.3);
+}
+
+.btn-danger:hover {
+  background: rgba(239, 83, 80, 0.25);
+}
+
+/* ── Team setup rows ────────────────────────────────────────────────── */
+
+.team-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.team-row-name { flex: 1; font-weight: 500; }
+.team-row-count { font-size: 0.75rem; color: #78909c; }
+.team-row-actions { display: flex; gap: 6px; }
+
+/* ── Team card (dashboard) ──────────────────────────────────────────── */
+
+.team-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  margin-bottom: 8px;
+}
+
+.team-card-info { display: flex; flex-direction: column; gap: 2px; }
+.team-card-name { font-weight: 600; }
+.team-card-count { font-size: 0.75rem; color: #78909c; }
+
+/* ── Roster editor ──────────────────────────────────────────────────── */
+
+.roster-player-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.roster-player-number { font-size: 0.8rem; color: #546e7a; min-width: 20px; }
+.roster-player-input { flex: 1; }
+
+/* ── Squad select ───────────────────────────────────────────────────── */
+
+.squad-player-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  min-height: 44px;
+}
+
+/* ── Empty state ────────────────────────────────────────────────────── */
+
+.empty-state {
+  text-align: center;
+  color: #546e7a;
+  padding: 24px 16px;
+  font-size: 0.9rem;
+}
+
+/* ── Small button variant ────────────────────────────────────────────── */
+
+.btn-small {
+  min-height: 36px;
+  padding: 6px 12px;
+  font-size: 0.82rem;
+}
+
+/* btn-small still meets accessibility when used with adequate spacing */
+/* keep 44px touch target via margin/padding on parent when grouped */
