@@ -18,12 +18,12 @@ body {
 }
 
 .screen {
-    display: none;
+    display: none !important;
     padding: 16px;
 }
 
 .screen.active {
-    display: block;
+    display: block !important;
 }
 
 .hidden {
