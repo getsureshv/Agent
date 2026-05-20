@@ -4,7 +4,19 @@
  * Called by src/main.js after storage + sync init.
  */
 
+// All UI init functions — each wires its screen's event handlers.
+// Imported individually so a single module failure does not block others.
 import { initSettings } from './settings.js';
+import { initHome } from './home.js';
+import { initSetup } from './setup.js';
+import { initTeams } from './teams.js';
+import { initTournamentUI } from './tournament-ui.js';
+import { initScoring } from './scoring.js';
+import { initScorecard } from './scorecard.js';
+import { initModals } from './modal.js';
+import { initSyncIndicator } from './syncIndicator.js';
+import { initChat } from './chat.js';
+// initUmpireCam is intentionally NOT auto-initialised here — starts on demand.
 
 // Valid screen IDs per INTERFACES.md
 const VALID_SCREENS = [
@@ -121,11 +133,27 @@ export function initUI() {
     }
   });
 
-  // Wire up Settings / Sign-In screen handlers (button clicks, form submit)
-  try {
-    initSettings();
-  } catch (err) {
-    console.error('[screens] initSettings failed:', err);
+  // Wire up every screen's event handlers. Each is wrapped so one
+  // failing init can't prevent the others from attaching their
+  // listeners (and from showScreen() running below).
+  const inits = [
+    ['initSettings',      initSettings],
+    ['initHome',          initHome],
+    ['initSetup',         initSetup],
+    ['initTeams',         initTeams],
+    ['initTournamentUI',  initTournamentUI],
+    ['initScoring',       initScoring],
+    ['initScorecard',     initScorecard],
+    ['initModals',        initModals],
+    ['initSyncIndicator', initSyncIndicator],
+    ['initChat',          initChat],
+  ];
+  for (const [name, fn] of inits) {
+    try {
+      fn();
+    } catch (err) {
+      console.error('[screens] ' + name + '() failed:', err);
+    }
   }
 
   // Navigate to home screen as the initial state
