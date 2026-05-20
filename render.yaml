@@ -2,7 +2,7 @@ services:
   - type: web
     name: cricket-scorer
     env: node
-    plan: starter
+    plan: free
     region: oregon
     branch: claude/cricket-scoring-app-FjJPG
     buildCommand: npm ci
@@ -21,5 +21,5 @@ services:
 
 databases:
   - name: cricket-db
-    plan: basic-256mb
+    plan: free
     region: oregon
