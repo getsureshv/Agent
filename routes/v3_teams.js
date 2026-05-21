@@ -3,7 +3,7 @@ import { pool } from '../db.js';
 import { requireUser, attachUser } from '../auth/middleware.js';
 import {
   requireTournamentOwner,
-  requireTournamentReader,
+  requireTournamentMember,
 } from '../auth/tournament_access.js';
 
 const router = Router({ mergeParams: true });
@@ -45,8 +45,8 @@ router.post('/', requireUser, requireTournamentOwner, async (req, res) => {
   }
 });
 
-// GET /api/v3/tournaments/:tid/teams
-router.get('/', attachUser, requireTournamentReader, async (req, res) => {
+// GET /api/v3/tournaments/:tid/teams — member only (rosters are not public).
+router.get('/', requireUser, requireTournamentMember, async (req, res) => {
   try {
     const r = await pool.query(
       `SELECT t.*, u.name AS captain_name, u.email AS captain_email

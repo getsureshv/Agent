@@ -134,6 +134,16 @@ form .err { color: var(--danger); font-size: 0.85rem; margin: 8px 0; min-height:
 /* Login */
 .auth-container { max-width: 380px; margin: 40px auto; }
 
+/* Roster table (captain SPA) */
+.roster-table { width: 100%; border-collapse: collapse; margin-top: 12px;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.roster-table th, .roster-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+.roster-table th { color: var(--text-dim); font-weight: 500; background: var(--bg-elev); }
+.roster-table tr:last-child td { border-bottom: none; }
+.roster-table td.actions-cell { display: flex; gap: 6px; justify-content: flex-end; }
+.inline-check { display: inline-flex; align-items: center; gap: 4px; color: var(--text-dim); font-size: 0.85rem; margin: 0; }
+.inline-check input { width: auto; }
+
 /* Mobile */
 @media (max-width: 600px) {
   main { padding: 16px 12px; }

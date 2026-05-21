@@ -10,8 +10,8 @@ const router = Router({ mergeParams: true });
 
 const ALLOWED_STATUS = new Set(['scheduled', 'live', 'completed']);
 
-function rowToFixture(r) {
-  return {
+function rowToFixture(r, { includeScorer = true } = {}) {
+  const base = {
     id: r.id,
     tournament_id: r.tournament_id,
     team_a_id: r.team_a_id,
@@ -20,14 +20,17 @@ function rowToFixture(r) {
     team_b_name: r.team_b_name,
     scheduled_at: r.scheduled_at,
     venue: r.venue,
-    scorer_user_id: r.scorer_user_id,
-    scorer_name: r.scorer_name,
-    scorer_email: r.scorer_email,
     status: r.status,
     match_id: r.match_id,
     created_at: r.created_at,
     updated_at: r.updated_at,
   };
+  if (includeScorer) {
+    base.scorer_user_id = r.scorer_user_id;
+    base.scorer_name   = r.scorer_name;
+    base.scorer_email  = r.scorer_email;
+  }
+  return base;
 }
 
 async function fetchFixture(id) {
@@ -97,10 +100,17 @@ router.post('/', requireUser, requireTournamentOwner, async (req, res) => {
 });
 
 // POST /api/v3/tournaments/:tid/fixtures/generate
+// Query/body: mode = 'add' (default) | 'replace'
+// In 'replace' mode, fixtures that have no associated match events are
+// deleted before generation; played fixtures are preserved and returned.
 router.post('/generate', requireUser, requireTournamentOwner, async (req, res) => {
   const format = req.body?.format;
+  const mode = (req.query.mode || req.body?.mode || 'add').toString();
   if (!['round-robin', 'knockout'].includes(format)) {
     return res.status(400).json({ error: 'format must be round-robin or knockout', code: 'INVALID_INPUT' });
+  }
+  if (!['add', 'replace'].includes(mode)) {
+    return res.status(400).json({ error: "mode must be 'add' or 'replace'", code: 'INVALID_INPUT' });
   }
   try {
     const teams = await pool.query(
@@ -126,6 +136,37 @@ router.post('/generate', requireUser, requireTournamentOwner, async (req, res) =
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
+
+      let deleted = 0;
+      let preserved = [];
+      if (mode === 'replace') {
+        const played = await client.query(
+          `SELECT f.id, ta.name AS team_a_name, tb.name AS team_b_name, f.status
+             FROM v3_fixtures f
+             JOIN v3_teams ta ON ta.id = f.team_a_id
+             JOIN v3_teams tb ON tb.id = f.team_b_id
+            WHERE f.tournament_id = $1
+              AND EXISTS (
+                SELECT 1
+                  FROM v3_matches m
+                  JOIN v3_match_events e ON e.match_id = m.id
+                 WHERE m.fixture_id = f.id
+              )`,
+          [req.tournament.id]
+        );
+        preserved = played.rows.map((r) => ({
+          id: r.id, team_a_name: r.team_a_name, team_b_name: r.team_b_name, status: r.status,
+        }));
+        const playedIds = played.rows.map((r) => r.id);
+        const del = await client.query(
+          `DELETE FROM v3_fixtures
+            WHERE tournament_id = $1
+              AND NOT (id = ANY($2::uuid[]))`,
+          [req.tournament.id, playedIds]
+        );
+        deleted = del.rowCount;
+      }
+
       const inserted = [];
       for (const [a, b] of pairs) {
         const r = await client.query(
@@ -136,7 +177,14 @@ router.post('/generate', requireUser, requireTournamentOwner, async (req, res) =
         inserted.push(r.rows[0].id);
       }
       await client.query('COMMIT');
-      return res.json({ ok: true, created: inserted.length, fixture_ids: inserted });
+      return res.json({
+        ok: true,
+        mode,
+        created: inserted.length,
+        fixture_ids: inserted,
+        deleted,
+        preserved_fixtures: preserved,
+      });
     } catch (err) {
       await client.query('ROLLBACK').catch(() => {});
       throw err;
@@ -150,6 +198,7 @@ router.post('/generate', requireUser, requireTournamentOwner, async (req, res) =
 });
 
 // GET /api/v3/tournaments/:tid/fixtures
+// Public viewers see fixtures but never scorer assignment.
 router.get('/', attachUser, requireTournamentReader, async (req, res) => {
   try {
     const r = await pool.query(
@@ -164,7 +213,8 @@ router.get('/', attachUser, requireTournamentReader, async (req, res) => {
         ORDER BY f.scheduled_at NULLS LAST, f.created_at ASC`,
       [req.tournament.id]
     );
-    return res.json({ fixtures: r.rows.map(rowToFixture) });
+    const includeScorer = req.tournamentRole !== 'public';
+    return res.json({ fixtures: r.rows.map((row) => rowToFixture(row, { includeScorer })) });
   } catch (err) {
     console.error('[v3_fixtures] list', err.message);
     return res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_ERROR' });
