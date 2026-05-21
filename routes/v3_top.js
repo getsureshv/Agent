@@ -1,4 +1,5 @@
 // Top-level v3 read endpoints that aren't naturally nested under a tournament:
+//   GET /api/v3/config                 — runtime config for the SPAs (public)
 //   GET /api/v3/fixtures/:id           — fixture detail (auth required: tournament member)
 //   GET /api/v3/matches/:id/score      — public live-score stub (filled in by PR 4)
 
@@ -6,8 +7,17 @@ import { Router } from 'express';
 import { pool } from '../db.js';
 import { requireUser, attachUser } from '../auth/middleware.js';
 import { requireTournamentMember } from '../auth/tournament_access.js';
+import { isConfigured as mailIsConfigured } from '../lib/mailer.js';
 
 const router = Router();
+
+// GET /api/v3/config — public runtime config for SPAs.
+router.get('/config', (req, res) => {
+  res.json({
+    emailConfigured: mailIsConfigured(),
+    publicBaseUrl: process.env.PUBLIC_BASE_URL || null,
+  });
+});
 
 router.get('/fixtures/:id',
   requireUser,

@@ -185,6 +185,25 @@ Mounted alongside the legacy `/api/*` routes; both will coexist until PR 5.
 - **Invite landing** at `/invite/:token` — the admin SPA renders the accept page;
   on success, captain invites bounce the browser to `/app/captain/`.
 
+### Email (optional)
+
+To enable the "Send invite" button:
+
+1. Enable 2-Step Verification on your Google account.
+2. Create a Gmail App Password at https://myaccount.google.com/apppasswords (16-char).
+3. In Render dashboard for the cricket-scorer service, set env vars:
+   - `SMTP_USER` = your gmail address
+   - `SMTP_PASS` = the 16-char app password (no spaces)
+   - `SMTP_FROM_NAME` = Cricket Scorer (optional, default)
+4. Trigger Manual Deploy.
+
+If SMTP is not configured, the Send button is disabled and admins can use Copy to share the invite link manually. The admin SPA polls `GET /api/v3/config` on load to decide which UI to render.
+
+Endpoints:
+
+- `GET  /api/v3/config` (public) — `{ emailConfigured, publicBaseUrl }`.
+- `POST /api/v3/invites/:token/email` (owner) — re-sends the invite link by email. Body `{ recipientEmail }` optionally overrides the address for this send only (does not mutate the invite row). Stamps `v3_invites.last_emailed_at`. Returns 503 if SMTP is not configured, 410 if the invite is revoked/consumed/expired.
+
 ### WebSocket
 
 Connect to `ws://<host>/ws` (no auth on upgrade — read-only spectator).

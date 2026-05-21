@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import { pool } from '../db.js';
 import { requireUser } from '../auth/middleware.js';
 import { requireTournamentOwner } from '../auth/tournament_access.js';
+import { isConfigured as mailIsConfigured, getTransporter } from '../lib/mailer.js';
 
 const router = Router({ mergeParams: true });
 
@@ -27,6 +28,7 @@ function rowToInvite(r) {
     consumed_by: r.consumed_by,
     revoked_at: r.revoked_at || null,
     expires_at: r.expires_at,
+    last_emailed_at: r.last_emailed_at || null,
     created_at: r.created_at,
     status,
   };
@@ -275,6 +277,143 @@ acceptRouter.post('/:token/accept', requireUser, async (req, res) => {
     client.release();
   }
 });
+
+// POST /api/v3/invites/:token/email
+// Owner-only: re-sends the invite link by email (Gmail SMTP via nodemailer).
+// Optional body { recipientEmail } overrides invite.email for this send only;
+// the invite row is not mutated.
+acceptRouter.post('/:token/email', requireUser, async (req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT i.*,
+              t.name AS tournament_name, t.owner_user_id,
+              te.name AS team_name
+         FROM v3_invites i
+         JOIN v3_tournaments t ON t.id = i.tournament_id
+         LEFT JOIN v3_teams te ON te.id = i.team_id
+        WHERE i.token = $1
+        LIMIT 1`,
+      [req.params.token]
+    );
+    if (r.rowCount === 0) {
+      return res.status(404).json({ error: 'Invite not found', code: 'NOT_FOUND' });
+    }
+    const inv = r.rows[0];
+
+    // Ownership check inline — token-keyed routes don't fit
+    // requireTournamentOwner (which expects :id / :tid).
+    if (!req.user.is_global_admin && inv.owner_user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Not tournament owner', code: 'FORBIDDEN' });
+    }
+
+    if (!mailIsConfigured()) {
+      return res.status(503).json({
+        error: 'Email not configured. Set SMTP_USER and SMTP_PASS env vars, then redeploy.',
+        code: 'EMAIL_NOT_CONFIGURED',
+      });
+    }
+
+    if (inv.revoked_at) {
+      return res.status(410).json({
+        error: 'This invite was superseded by a newer one. Ask the admin for the new link.',
+        code: 'REVOKED',
+      });
+    }
+    if (inv.consumed_at) {
+      return res.status(410).json({ error: 'Invite already consumed', code: 'CONSUMED' });
+    }
+    if (new Date(inv.expires_at).getTime() < Date.now()) {
+      return res.status(410).json({ error: 'Invite expired', code: 'EXPIRED' });
+    }
+
+    const recipient = String(req.body?.recipientEmail || inv.email || '').trim();
+    if (!recipient || !EMAIL_RE.test(recipient)) {
+      return res.status(400).json({ error: 'Recipient email missing or invalid', code: 'INVALID_INPUT' });
+    }
+
+    const shareUrl = shareUrlFor(req, inv.token);
+    const expiresStr = new Date(inv.expires_at).toUTCString();
+    const subjectTail = inv.team_name
+      ? `${inv.team_name} (${inv.tournament_name})`
+      : inv.tournament_name;
+    const subject = inv.role === 'captain'
+      ? `Captain invite for ${subjectTail}`
+      : `Scorer invite for ${inv.tournament_name}`;
+
+    const roleLabel = inv.role === 'captain' ? 'captain' : 'scorer';
+    const teamLine = inv.team_name ? ` for ${inv.team_name}` : '';
+
+    const text = [
+      `You've been invited as ${roleLabel}${teamLine} in ${inv.tournament_name}.`,
+      '',
+      `Accept the invite:`,
+      shareUrl,
+      '',
+      `This link expires on ${expiresStr}.`,
+      '',
+      `If you weren't expecting this, you can ignore the message.`,
+      `— Cricket Scorer`,
+    ].join('\n');
+
+    const html = `
+      <div style="font-family: -apple-system, Segoe UI, Roboto, sans-serif; max-width: 520px;">
+        <h2 style="margin: 0 0 12px;">Cricket Scorer invite</h2>
+        <p>You've been invited as <strong>${roleLabel}</strong>${teamLine ? ' for <strong>' + escapeHtml(inv.team_name) + '</strong>' : ''} in <strong>${escapeHtml(inv.tournament_name)}</strong>.</p>
+        <p>
+          <a href="${escapeAttr(shareUrl)}" style="display: inline-block; background: #0288d1; color: white; padding: 10px 18px; border-radius: 6px; text-decoration: none; font-weight: 600;">Accept invite</a>
+        </p>
+        <p style="color: #555; font-size: 0.9em;">Or paste this URL into your browser:<br />
+          <code style="word-break: break-all;">${escapeHtml(shareUrl)}</code>
+        </p>
+        <p style="color: #888; font-size: 0.85em;">This link expires on ${escapeHtml(expiresStr)}.</p>
+      </div>
+    `;
+
+    const fromName = process.env.SMTP_FROM_NAME || 'Cricket Scorer';
+    const fromEmail = process.env.SMTP_USER;
+
+    const transporter = getTransporter();
+    try {
+      await transporter.sendMail({
+        from: `"${fromName}" <${fromEmail}>`,
+        to: recipient,
+        subject,
+        text,
+        html,
+      });
+    } catch (err) {
+      console.error('[v3_invites] email send failed', err.message);
+      return res.status(500).json({ error: (err.message || 'Mail send failed').slice(0, 200) });
+    }
+
+    const upd = await pool.query(
+      `UPDATE v3_invites SET last_emailed_at = NOW()
+        WHERE id = $1
+       RETURNING last_emailed_at`,
+      [inv.id]
+    );
+    return res.json({
+      ok: true,
+      sentTo: recipient,
+      lastEmailedAt: upd.rows[0]?.last_emailed_at || null,
+    });
+  } catch (err) {
+    console.error('[v3_invites] email error', err.message);
+    return res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_ERROR' });
+  }
+});
+
+function escapeHtml(s) {
+  return String(s || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+function escapeAttr(s) {
+  return escapeHtml(s);
+}
 
 export { acceptRouter };
 export default router;

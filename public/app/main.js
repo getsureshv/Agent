@@ -1,11 +1,22 @@
 import { auth } from '/shared/auth.js';
+import { api } from '/shared/api.js';
 import { el, clear, toast } from '/shared/ui.js';
 import { renderLogin } from './views/login.js';
 import { renderDashboard } from './views/dashboard.js';
 import { renderTournament } from './views/tournament-detail.js';
 import { renderAcceptInvite } from './views/accept-invite.js';
 
-const state = { user: null };
+const state = { user: null, appConfig: { emailConfigured: false, publicBaseUrl: null } };
+
+async function loadConfig() {
+  try {
+    state.appConfig = await api.get('/api/v3/config');
+  } catch {
+    state.appConfig = { emailConfigured: false, publicBaseUrl: null };
+  }
+  // Expose for ad-hoc debugging; ctx.appConfig is the supported accessor.
+  window.appConfig = state.appConfig;
+}
 
 async function refreshMe() {
   try {
@@ -33,6 +44,7 @@ function renderTopbar() {
 
 const ctx = {
   get user() { return state.user; },
+  get appConfig() { return state.appConfig; },
   refreshMe: async () => { await refreshMe(); renderTopbar(); },
   navigate: (hash) => { location.hash = hash; },
   toast,
@@ -78,7 +90,7 @@ async function route() {
 
 window.addEventListener('hashchange', route);
 window.addEventListener('DOMContentLoaded', async () => {
-  await refreshMe();
+  await Promise.all([refreshMe(), loadConfig()]);
   renderTopbar();
   // Initial route — preserve hash if present, else /invite path was just rewritten,
   // else default to dashboard (which redirects to login if logged out).

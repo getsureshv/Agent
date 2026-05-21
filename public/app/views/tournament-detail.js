@@ -151,18 +151,52 @@ function showInviteCaptainModal(ctx, tournament, team, refresh) {
             role: 'captain',
             team_id: team.id,
           });
-          clear(resultBox);
-          resultBox.appendChild(el('p', { class: 'muted', style: 'margin-top: 12px;' },
-            'Share this link with the invitee:'));
-          const linkRow = el('div', { class: 'share-link' }, [
-            el('span', {}, r.share_url),
-            el('button', { class: 'btn btn-sm', onClick: () => copy(r.share_url) }, 'Copy'),
-          ]);
-          resultBox.appendChild(linkRow);
+          renderInviteResult(ctx, resultBox, r, emailInput.value.trim());
         } catch (err) { errBox.textContent = err.message; }
       },
     },
   ]);
+}
+
+// Shared result block: shows the share URL with Copy, plus an Email button
+// when SMTP is configured server-side. Falls back to the manual-copy hint
+// when emailConfigured is false.
+function renderInviteResult(ctx, resultBox, inviteResp, recipientEmail) {
+  clear(resultBox);
+  resultBox.appendChild(el('p', { class: 'muted', style: 'margin-top: 12px;' },
+    'Share this link with the invitee:'));
+  resultBox.appendChild(el('div', { class: 'share-link' }, [
+    el('span', {}, inviteResp.share_url),
+    el('button', { class: 'btn btn-sm', onClick: () => copy(inviteResp.share_url) }, 'Copy'),
+  ]));
+
+  const emailRow = el('div', { class: 'row', style: 'margin-top: 8px; align-items: center;' });
+  const emailBtn = el('button', { class: 'btn btn-sm' }, `Email to ${recipientEmail}`);
+  emailRow.appendChild(emailBtn);
+  resultBox.appendChild(emailRow);
+
+  if (!ctx.appConfig?.emailConfigured) {
+    emailBtn.disabled = true;
+    emailRow.appendChild(el('span', { class: 'muted', style: 'font-size: 0.8rem;' },
+      'Email not configured. Use Copy to share the link manually.'));
+    return;
+  }
+
+  emailBtn.addEventListener('click', async () => {
+    emailBtn.disabled = true;
+    const originalLabel = emailBtn.textContent;
+    emailBtn.textContent = 'Sending…';
+    try {
+      const r = await api.post(`/api/v3/invites/${encodeURIComponent(inviteResp.token)}/email`,
+        { recipientEmail });
+      toast(`Email sent to ${r.sentTo}`, 'success');
+      emailBtn.textContent = 'Email sent';
+    } catch (err) {
+      toast(err.message || 'Email failed', 'error');
+      emailBtn.disabled = false;
+      emailBtn.textContent = originalLabel;
+    }
+  });
 }
 
 // ── Fixtures tab ───────────────────────────────────────────────────
@@ -403,9 +437,12 @@ async function renderInvites(container, ctx, tournament, refresh) {
     return;
   }
 
-  // Send-scorer-invite card (captain invites flow from Teams tab)
+  // Send-scorer-invite card (captain invites flow from Teams tab).
+  // When SMTP is configured, also mail the invite link immediately;
+  // either way, the link is copied to the clipboard.
   const errBox = el('div', { class: 'err' });
   const emailInput = el('input', { type: 'email', placeholder: 'scorer@example.com' });
+  const canEmail = !!ctx.appConfig?.emailConfigured;
   container.appendChild(el('div', { class: 'card' }, [
     el('h3', {}, 'Invite a scorer'),
     el('div', { class: 'row' }, [emailInput,
@@ -413,22 +450,35 @@ async function renderInvites(container, ctx, tournament, refresh) {
         class: 'btn',
         onClick: async () => {
           errBox.textContent = '';
-          if (!emailInput.value.trim()) { errBox.textContent = 'Email required'; return; }
+          const recipient = emailInput.value.trim();
+          if (!recipient) { errBox.textContent = 'Email required'; return; }
           try {
             const r = await api.post(`/api/v3/tournaments/${tournament.id}/invites`, {
-              email: emailInput.value.trim(),
+              email: recipient,
               role: 'scorer',
             });
-            toast('Invite created');
             await copy(r.share_url);
+            if (canEmail) {
+              try {
+                await api.post(`/api/v3/invites/${encodeURIComponent(r.token)}/email`,
+                  { recipientEmail: recipient });
+                toast(`Invite emailed to ${recipient}`, 'success');
+              } catch (e) {
+                toast(`Invite created (link copied). Email failed: ${e.message}`, 'error');
+              }
+            } else {
+              toast('Invite created — link copied to clipboard');
+            }
             refresh();
           } catch (err) { errBox.textContent = err.message; }
         },
-      }, 'Send invite (copies link)'),
+      }, canEmail ? 'Send invite (emails + copies link)' : 'Send invite (copies link)'),
     ]),
     errBox,
     el('p', { class: 'muted', style: 'font-size: 0.82rem; margin-top: 8px;' },
-      'Captain invites are sent from the Teams tab — they require a team to attach to.'),
+      canEmail
+        ? 'Captain invites are sent from the Teams tab — they require a team to attach to.'
+        : 'Email not configured — only the share link is generated. Set SMTP_USER/SMTP_PASS in Render to enable sending. Captain invites are sent from the Teams tab.'),
   ]));
 
   if (invites.length === 0) {
@@ -439,26 +489,56 @@ async function renderInvites(container, ctx, tournament, refresh) {
   const listCard = el('div', { class: 'card' });
   for (const inv of invites) {
     const teamLabel = inv.team_name ? ` · team: ${inv.team_name}` : '';
+    const sub = [
+      `${inv.role}${teamLabel}`,
+      `sent ${fmtDate(inv.created_at)}`,
+      inv.last_emailed_at ? `last emailed ${fmtDate(inv.last_emailed_at)}` : null,
+      inv.consumed_at ? `accepted ${fmtDate(inv.consumed_at)}` : null,
+    ].filter(Boolean).join(' · ');
+
+    const rowActions = [];
+    if (canEmail && inv.status === 'pending') {
+      rowActions.push(el('button', {
+        class: 'btn btn-sm',
+        onClick: async (e) => {
+          const btn = e.currentTarget;
+          btn.disabled = true;
+          const original = btn.textContent;
+          btn.textContent = 'Sending…';
+          try {
+            await api.post(`/api/v3/invites/${encodeURIComponent(inv.token)}/email`, {});
+            toast(`Email sent to ${inv.email}`, 'success');
+            refresh();
+          } catch (err) {
+            toast(err.message, 'error');
+            btn.disabled = false;
+            btn.textContent = original;
+          }
+        },
+      }, 'Email'));
+    }
+    rowActions.push(el('button', {
+      class: 'btn btn-sm btn-danger',
+      onClick: async () => {
+        if (!confirm(`Revoke invite to ${inv.email}?`)) return;
+        try {
+          await api.delete(`/api/v3/tournaments/${tournament.id}/invites/${inv.id}`);
+          refresh();
+        } catch (err) { toast(err.message, 'error'); }
+      },
+    }, 'Revoke'));
+
     listCard.appendChild(el('div', { class: 'list-row' }, [
       el('div', { class: 'body' }, [
         el('strong', {}, inv.email),
-        el('div', { class: 'sub' }, `${inv.role}${teamLabel} · sent ${fmtDate(inv.created_at)}${inv.consumed_at ? ` · accepted ${fmtDate(inv.consumed_at)}` : ''}`),
+        el('div', { class: 'sub' }, sub),
         el('div', { class: 'share-link', style: 'margin-top: 6px;' }, [
           el('span', {}, inv.share_url),
           el('button', { class: 'btn btn-sm', onClick: () => copy(inv.share_url) }, 'Copy'),
         ]),
       ]),
       el('span', { class: `badge status-${inv.status}` }, inv.status),
-      el('button', {
-        class: 'btn btn-sm btn-danger',
-        onClick: async () => {
-          if (!confirm(`Revoke invite to ${inv.email}?`)) return;
-          try {
-            await api.delete(`/api/v3/tournaments/${tournament.id}/invites/${inv.id}`);
-            refresh();
-          } catch (err) { toast(err.message, 'error'); }
-        },
-      }, 'Revoke'),
+      el('div', { class: 'actions' }, rowActions),
     ]));
   }
   container.appendChild(listCard);
