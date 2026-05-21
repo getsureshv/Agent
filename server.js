@@ -35,6 +35,9 @@ import devicesRouter from './routes/devices.js';
 import tournamentsRouter from './routes/tournaments.js';
 import matchesRouter from './routes/matches.js';
 import v3AuthRouter from './routes/v3_auth.js';
+import v3TournamentsRouter from './routes/v3_tournaments.js';
+import v3UsersRouter from './routes/v3_users.js';
+import { acceptRouter as v3InvitesAcceptRouter } from './routes/v3_invites.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -65,7 +68,10 @@ app.use('/api/tournaments', tournamentsRouter);
 app.use('/api/matches',     matchesRouter);
 
 // v3 routes — mounted alongside legacy paths; PR 5 will retire the legacy ones.
-app.use('/api/v3/auth',     v3AuthRouter);
+app.use('/api/v3/auth',        v3AuthRouter);
+app.use('/api/v3/tournaments', v3TournamentsRouter);
+app.use('/api/v3/users',       v3UsersRouter);
+app.use('/api/v3/invites',     v3InvitesAcceptRouter);
 
 // ── Admin wipe (basic-auth protected) ───────────────────────────────
 const adminPassword = process.env.ADMIN_PASSWORD;
@@ -156,9 +162,34 @@ app.get('/pwa/*', (req, res) => {
   res.sendFile(path.join(__dirname, 'pwa', 'index.html'));
 });
 
+// ── v3 admin SPA — served at /app ────────────────────────────────────
+// Vanilla-JS single page app. SPA fallback so client-side hash routing works.
+app.use('/app', express.static(path.join(__dirname, 'public/app'), {
+  dotfiles: 'ignore',
+  setHeaders: (res, filePath) => {
+    if (path.basename(filePath) === 'index.html') {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+  },
+}));
+app.get('/app', (req, res) => res.redirect(301, '/app/'));
+app.get('/app/*', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.sendFile(path.join(__dirname, 'public/app/index.html'));
+});
+
+// Deep link for invite tokens — serve the SPA, which reads window.location
+// and routes to the accept-invite view.
+app.get('/invite/:token', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.sendFile(path.join(__dirname, 'public/app/index.html'));
+});
+
 // ── Legacy root static ──────────────────────────────────────────────────
 // Serves the desktop cricket scoring app: index.html, app.js, styles.css, etc.
-// Must come AFTER all /api, /admin, and /pwa routes.
+// Must come AFTER all /api, /admin, /pwa, and /app routes.
 app.use(express.static(__dirname, {
   index: 'index.html',
   dotfiles: 'ignore',
