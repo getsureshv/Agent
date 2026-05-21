@@ -392,6 +392,22 @@ acceptRouter.post('/:token/email', requireUser, async (req, res) => {
       htmlIntro = `You've been invited as <strong>${roleLabel}</strong>${inv.team_name ? ' for <strong>' + escapeHtml(inv.team_name) + '</strong>' : ''} in <strong>${escapeHtml(inv.tournament_name)}</strong>.`;
     }
 
+    // Identify the person who triggered the send (captain or admin) so the
+    // invitee can see who's reaching out and reply directly. The mailer
+    // sends from onboarding@resend.dev (test mode) but Resend honours
+    // reply_to, so Reply in the recipient's mail client goes to the sender.
+    const senderEmail = (req.user.email || '').trim();
+    const senderName  = (req.user.name  || '').trim();
+    const senderLabel = senderName ? `${senderName} (${senderEmail})` : senderEmail;
+    const senderLine  = senderEmail
+      ? `Sent by ${senderLabel}. Reply to this email to reach them directly.`
+      : '';
+    const senderHtml  = senderEmail
+      ? `<p style="color: #555; font-size: 0.9em;">Sent by <strong>${escapeHtml(senderName || senderEmail)}</strong>` +
+        (senderName ? ` &lt;<a href="mailto:${escapeAttr(senderEmail)}">${escapeHtml(senderEmail)}</a>&gt;` : '') +
+        `. Reply to this email to reach them directly.</p>`
+      : '';
+
     const text = [
       intro,
       '',
@@ -399,6 +415,7 @@ acceptRouter.post('/:token/email', requireUser, async (req, res) => {
       shareUrl,
       '',
       `This link expires on ${expiresStr}.`,
+      ...(senderLine ? ['', senderLine] : []),
       '',
       `If you weren't expecting this, you can ignore the message.`,
       `— Cricket Scorer`,
@@ -415,20 +432,18 @@ acceptRouter.post('/:token/email', requireUser, async (req, res) => {
           <code style="word-break: break-all;">${escapeHtml(shareUrl)}</code>
         </p>
         <p style="color: #888; font-size: 0.85em;">This link expires on ${escapeHtml(expiresStr)}.</p>
+        ${senderHtml}
       </div>
     `;
-
-    const fromName = process.env.SMTP_FROM_NAME || 'Cricket Scorer';
-    const fromEmail = process.env.SMTP_USER;
 
     const transporter = getTransporter();
     try {
       await transporter.sendMail({
-        from: `"${fromName}" <${fromEmail}>`,
         to: recipient,
         subject,
         text,
         html,
+        replyTo: senderEmail || undefined,
       });
     } catch (err) {
       console.error('[v3_invites] email send failed', err.message);
