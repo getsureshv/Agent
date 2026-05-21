@@ -87,10 +87,10 @@ async function main() {
   check('create captain invite', inv.status === 200);
   const token = inv.body.token;
 
-  // ── POST /email when SMTP NOT configured → 503 ──────────────────
+  // ── POST /email when mailer NOT configured → 503 ────────────────
   if (!configured) {
     const r = await call(adminE, `/api/v3/invites/${token}/email`, { method: 'POST' });
-    check('POST /email → 503 when SMTP not configured', r.status === 503,
+    check('POST /email → 503 when mailer not configured', r.status === 503,
       `status ${r.status} ${JSON.stringify(r.body)}`);
     check('503 body has helpful message',
       typeof r.body?.error === 'string' && /Email not configured/i.test(r.body.error),

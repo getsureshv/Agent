@@ -20,13 +20,14 @@ services:
         fromDatabase:
           name: cricket-db
           property: connectionString
-      # SMTP (Gmail) for the v3 "Send invite" button. Set manually in the
-      # Render dashboard — see README "Email (optional)" for the steps.
-      - key: SMTP_USER
+      # Mail (Resend HTTP API) for the v3 "Send invite" button. Render's
+      # free tier blocks outbound SMTP, so we use HTTPS-based Resend.
+      # Set RESEND_API_KEY manually in the Render dashboard.
+      - key: RESEND_API_KEY
         sync: false
-      - key: SMTP_PASS
-        sync: false
-      - key: SMTP_FROM_NAME
+      - key: MAIL_FROM
+        value: "onboarding@resend.dev"
+      - key: MAIL_FROM_NAME
         value: "Cricket Scorer"
 
 databases:

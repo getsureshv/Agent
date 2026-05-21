@@ -308,7 +308,7 @@ acceptRouter.post('/:token/email', requireUser, async (req, res) => {
 
     if (!mailIsConfigured()) {
       return res.status(503).json({
-        error: 'Email not configured. Set SMTP_USER and SMTP_PASS env vars, then redeploy.',
+        error: 'Email not configured. Set RESEND_API_KEY env var, then redeploy.',
         code: 'EMAIL_NOT_CONFIGURED',
       });
     }
