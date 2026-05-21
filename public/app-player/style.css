@@ -1,0 +1,42 @@
+/* Player SPA — profile editor styles. */
+.profile-layout { display: grid; grid-template-columns: 1fr 240px; gap: 20px; align-items: start; }
+@media (max-width: 720px) {
+  .profile-layout { grid-template-columns: 1fr; }
+}
+
+.profile-header { display: flex; gap: 16px; align-items: center; margin-bottom: 16px; }
+.avatar-circle {
+  width: 72px; height: 72px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
+  color: #062b3f; font-weight: 700; font-size: 1.6rem;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.profile-id-row { display: flex; gap: 8px; align-items: center; }
+.player-code-chip {
+  font-family: monospace; font-size: 0.78rem;
+  background: var(--bg-elev); color: var(--text-dim);
+  padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border);
+}
+
+.profile-section { background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px; margin-bottom: 12px; }
+.profile-section h2 { font-size: 1rem; margin-top: 0; color: var(--text-dim); text-transform: uppercase;
+  letter-spacing: 0.04em; font-weight: 600; }
+.profile-grid { display: grid; grid-template-columns: repeat(2, minmax(160px, 1fr)); gap: 10px 14px; }
+@media (max-width: 540px) {
+  .profile-grid { grid-template-columns: 1fr; }
+}
+.profile-grid .field-full { grid-column: 1 / -1; }
+.profile-grid label { margin: 0; font-size: 0.78rem; }
+
+.sidebar { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; }
+.sidebar h3 { font-size: 0.85rem; margin-top: 0; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }
+.sidebar .team-row { padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+.sidebar .team-row:last-child { border-bottom: none; }
+.sidebar .team-name { font-weight: 600; color: var(--text); }
+.sidebar .team-tournament { color: var(--text-dim); font-size: 0.78rem; }
+
+.radio-row { display: flex; gap: 16px; flex-wrap: wrap; }
+.radio-row label { display: inline-flex; align-items: center; gap: 4px; color: var(--text); }
+.radio-row input[type=radio] { width: auto; }

@@ -4,6 +4,7 @@ import { pool } from '../db.js';
 import { requireUser } from '../auth/middleware.js';
 import { requireTournamentOwner } from '../auth/tournament_access.js';
 import { isConfigured as mailIsConfigured, getTransporter } from '../lib/mailer.js';
+import { buildShareUrl } from '../lib/util.js';
 
 const router = Router({ mergeParams: true });
 
@@ -35,15 +36,21 @@ function rowToInvite(r) {
 }
 
 function redirectAfter(inv) {
-  return inv.role === 'captain' ? '/app/captain/#/dashboard' : '/app/#/dashboard';
+  if (inv.role === 'captain') return '/app/captain/#/dashboard';
+  if (inv.role === 'player')  return inv.player_id
+    ? `/app/player/#/profile/${inv.player_id}`
+    : '/app/player/#/profile';
+  return '/app/#/dashboard';
+}
+
+function redirectTarget(role) {
+  if (role === 'captain') return '/app/captain/';
+  if (role === 'player')  return '/app/player/';
+  return '/app/';
 }
 
 function shareUrlFor(req, token) {
-  const base = process.env.PUBLIC_BASE_URL
-    || (req.headers['x-forwarded-proto'] && req.headers['x-forwarded-host']
-        ? `${req.headers['x-forwarded-proto']}://${req.headers['x-forwarded-host']}`
-        : `${req.protocol}://${req.get('host')}`);
-  return `${base}/invite/${token}`;
+  return buildShareUrl(req, `/invite/${token}`);
 }
 
 // POST /api/v3/tournaments/:tid/invites
@@ -162,11 +169,14 @@ acceptRouter.get('/:token', async (req, res) => {
   try {
     const r = await pool.query(
       `SELECT i.email, i.role, i.expires_at, i.consumed_at, i.revoked_at,
+              i.player_id,
               t.id AS tournament_id, t.name AS tournament_name,
-              te.name AS team_name
+              te.name AS team_name,
+              p.name AS player_name
          FROM v3_invites i
          JOIN v3_tournaments t ON t.id = i.tournament_id
          LEFT JOIN v3_teams te ON te.id = i.team_id
+         LEFT JOIN v3_players p ON p.id = i.player_id
         WHERE i.token = $1
         LIMIT 1`,
       [req.params.token]
@@ -187,10 +197,12 @@ acceptRouter.get('/:token', async (req, res) => {
       tournament_name: row.tournament_name,
       role: row.role,
       team_name: row.team_name,
+      player_id: row.player_id,
+      player_name: row.player_name,
       email: row.email,
       expires_at: row.expires_at,
       already_consumed: !!row.consumed_at,
-      redirect_to: row.role === 'captain' ? '/app/captain/' : '/app/',
+      redirect_to: redirectTarget(row.role),
     });
   } catch (err) {
     console.error('[v3_invites] get', err.message);
@@ -254,6 +266,28 @@ acceptRouter.post('/:token/accept', requireUser, async (req, res) => {
           code: 'TEAM_HAS_CAPTAIN',
         });
       }
+    } else if (inv.role === 'player') {
+      if (!inv.player_id) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Player invite is missing player_id', code: 'INVALID_INVITE' });
+      }
+      // Only link the user if the slot is empty (or already this user).
+      const link = await client.query(
+        `UPDATE v3_players
+            SET user_id = $1,
+                profile_status = 'self_registered',
+                updated_at = NOW()
+          WHERE id = $2 AND (user_id IS NULL OR user_id = $1)
+        RETURNING id`,
+        [req.user.id, inv.player_id]
+      );
+      if (link.rowCount === 0) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'This player profile is already linked to a user',
+          code: 'PLAYER_HAS_USER',
+        });
+      }
     }
     // scorer invites: nothing to mutate beyond stamping the invite.
 
@@ -267,6 +301,7 @@ acceptRouter.post('/:token/accept', requireUser, async (req, res) => {
       tournament_id: inv.tournament_id,
       role: inv.role,
       team_id: inv.team_id,
+      player_id: inv.player_id || null,
       redirect_to: redirectAfter(inv),
     });
   } catch (err) {
@@ -336,15 +371,29 @@ acceptRouter.post('/:token/email', requireUser, async (req, res) => {
     const subjectTail = inv.team_name
       ? `${inv.team_name} (${inv.tournament_name})`
       : inv.tournament_name;
-    const subject = inv.role === 'captain'
-      ? `Captain invite for ${subjectTail}`
-      : `Scorer invite for ${inv.tournament_name}`;
-
-    const roleLabel = inv.role === 'captain' ? 'captain' : 'scorer';
-    const teamLine = inv.team_name ? ` for ${inv.team_name}` : '';
+    let subject, roleLabel, intro, htmlIntro;
+    if (inv.role === 'captain') {
+      subject = `Captain invite for ${subjectTail}`;
+      roleLabel = 'captain';
+      intro = `You've been invited as ${roleLabel}${inv.team_name ? ' for ' + inv.team_name : ''} in ${inv.tournament_name}.`;
+      htmlIntro = `You've been invited as <strong>${roleLabel}</strong>${inv.team_name ? ' for <strong>' + escapeHtml(inv.team_name) + '</strong>' : ''} in <strong>${escapeHtml(inv.tournament_name)}</strong>.`;
+    } else if (inv.role === 'player') {
+      subject = 'Cricket Scorer — set up your player profile';
+      roleLabel = 'player';
+      const teamFrag = inv.team_name ? ` on ${inv.team_name}` : '';
+      intro = `You've been added as a player${teamFrag} in ${inv.tournament_name}. ` +
+              `Set up your profile (name, contact, batting/bowling style, etc.) so your stats can be tracked.`;
+      htmlIntro = `You've been added as a player${teamFrag ? ' on <strong>' + escapeHtml(inv.team_name) + '</strong>' : ''} in <strong>${escapeHtml(inv.tournament_name)}</strong>.` +
+                  ` Set up your profile so your stats can be tracked.`;
+    } else {
+      subject = `Scorer invite for ${inv.tournament_name}`;
+      roleLabel = 'scorer';
+      intro = `You've been invited as ${roleLabel}${inv.team_name ? ' for ' + inv.team_name : ''} in ${inv.tournament_name}.`;
+      htmlIntro = `You've been invited as <strong>${roleLabel}</strong>${inv.team_name ? ' for <strong>' + escapeHtml(inv.team_name) + '</strong>' : ''} in <strong>${escapeHtml(inv.tournament_name)}</strong>.`;
+    }
 
     const text = [
-      `You've been invited as ${roleLabel}${teamLine} in ${inv.tournament_name}.`,
+      intro,
       '',
       `Accept the invite:`,
       shareUrl,
@@ -358,7 +407,7 @@ acceptRouter.post('/:token/email', requireUser, async (req, res) => {
     const html = `
       <div style="font-family: -apple-system, Segoe UI, Roboto, sans-serif; max-width: 520px;">
         <h2 style="margin: 0 0 12px;">Cricket Scorer invite</h2>
-        <p>You've been invited as <strong>${roleLabel}</strong>${teamLine ? ' for <strong>' + escapeHtml(inv.team_name) + '</strong>' : ''} in <strong>${escapeHtml(inv.tournament_name)}</strong>.</p>
+        <p>${htmlIntro}</p>
         <p>
           <a href="${escapeAttr(shareUrl)}" style="display: inline-block; background: #0288d1; color: white; padding: 10px 18px; border-radius: 6px; text-decoration: none; font-weight: 600;">Accept invite</a>
         </p>

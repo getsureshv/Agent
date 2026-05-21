@@ -52,6 +52,11 @@ const require = createRequire(import.meta.url);
 // ── Express app ──────────────────────────────────────────────────────
 const app = express();
 
+// Render terminates TLS upstream and forwards via HTTP. Honor the
+// X-Forwarded-Proto / X-Forwarded-Host headers so req.protocol and
+// shared URL builders correctly report "https" in production.
+app.set('trust proxy', 1);
+
 // CORS: allow all origins for /api/* (PWA may be hosted on a different origin)
 app.use('/api', cors({
   origin: '*',
@@ -195,6 +200,18 @@ app.get('/app/captain', (req, res) => res.redirect(301, '/app/captain/'));
 app.get('/app/captain/*', (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   res.sendFile(path.join(__dirname, 'public/app-captain/index.html'));
+});
+
+// ── v3 player SPA — served at /app/player ────────────────────────────
+// Same dual-mount pattern as captain (must precede admin /app static).
+app.use('/app/player', express.static(path.join(__dirname, 'public/app-player'), {
+  dotfiles: 'ignore',
+  setHeaders: noCacheHtml,
+}));
+app.get('/app/player', (req, res) => res.redirect(301, '/app/player/'));
+app.get('/app/player/*', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.sendFile(path.join(__dirname, 'public/app-player/index.html'));
 });
 
 // ── v3 admin SPA — served at /app ────────────────────────────────────

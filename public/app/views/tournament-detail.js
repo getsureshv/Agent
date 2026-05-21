@@ -102,6 +102,13 @@ async function renderTeams(container, ctx, tournament, isOwner, refresh) {
           onClick: () => showInviteCaptainModal(ctx, tournament, t, refresh),
         }, 'Invite captain'));
       }
+      // Global admins (and tournament owners) can verify self-registered players.
+      if (ctx.user?.is_global_admin || tournament.owner_user_id === ctx.user?.id) {
+        actions.push(el('button', {
+          class: 'btn btn-sm btn-secondary',
+          onClick: () => showVerifyRosterModal(t, refresh),
+        }, 'Verify roster'));
+      }
       actions.push(el('button', {
         class: 'btn btn-sm btn-danger',
         onClick: async () => {
@@ -161,6 +168,73 @@ function showInviteCaptainModal(ctx, tournament, team, refresh) {
 // Shared result block: shows the share URL with Copy, plus an Email button
 // when SMTP is configured server-side. Falls back to the manual-copy hint
 // when emailConfigured is false.
+async function showVerifyRosterModal(team, refresh) {
+  const body = el('div', {});
+  body.appendChild(el('p', { class: 'muted' }, 'Loading…'));
+  const close = modal(`Verify roster — ${team.name}`, body, [
+    { label: 'Close', class: 'btn btn-secondary', onClick: (c) => c() },
+  ]).close;
+  try {
+    const r = await api.get(`/api/v3/teams/${team.id}/players`);
+    const players = r.players || [];
+    clear(body);
+    const candidates = players.filter((p) => p.profile_status === 'self_registered');
+    if (candidates.length === 0) {
+      body.appendChild(el('p', { class: 'muted' },
+        'No players in this team are awaiting verification. Players appear here after they accept their invite and fill in some profile detail.'));
+      return;
+    }
+    body.appendChild(el('p', { class: 'muted' }, 'Tap Verify to mark a player profile as confirmed.'));
+    const list = el('div', { class: 'card', style: 'padding: 8px 12px;' });
+    function rerender(list, candidates) {
+      clear(list);
+      for (const p of candidates) {
+        const row = el('div', { class: 'list-row' }, [
+          el('div', { class: 'body' }, [
+            el('strong', {}, p.name),
+            el('div', { class: 'sub' },
+              [
+                p.player_code,
+                p.first_name || p.last_name ? `${p.first_name || ''} ${p.last_name || ''}`.trim() : null,
+                p.phone_number || null,
+                p.batting_style ? `bats ${p.batting_style.replace('_', ' ')}` : null,
+              ].filter(Boolean).join(' · ')),
+          ]),
+          el('button', {
+            class: 'btn btn-sm',
+            onClick: async (e) => {
+              const btn = e.currentTarget;
+              btn.disabled = true;
+              const original = btn.textContent;
+              btn.textContent = 'Verifying…';
+              try {
+                await api.post(`/api/v3/players/${p.id}/verify`);
+                toast(`Verified ${p.name}`, 'success');
+                // Remove from local list and re-render
+                const filtered = candidates.filter((c) => c.id !== p.id);
+                rerender(list, filtered);
+                if (filtered.length === 0) {
+                  list.appendChild(el('p', { class: 'muted' }, 'All caught up.'));
+                }
+              } catch (err) {
+                toast(err.message, 'error');
+                btn.disabled = false;
+                btn.textContent = original;
+              }
+            },
+          }, 'Verify'),
+        ]);
+        list.appendChild(row);
+      }
+    }
+    rerender(list, candidates);
+    body.appendChild(list);
+  } catch (err) {
+    clear(body);
+    body.appendChild(el('p', { class: 'err' }, err.message));
+  }
+}
+
 function renderInviteResult(ctx, resultBox, inviteResp, recipientEmail) {
   clear(resultBox);
   resultBox.appendChild(el('p', { class: 'muted', style: 'margin-top: 12px;' },
