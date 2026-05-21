@@ -29,6 +29,7 @@ import basicAuth from 'express-basic-auth';
 
 import { pool, runMigrations } from './db.js';
 import { createWss } from './ws.js';
+import { createMatchWss, handleUpgrade as handleMatchUpgrade, MATCH_PATH_RE } from './lib/ws.js';
 
 import healthRouter from './routes/health.js';
 import devicesRouter from './routes/devices.js';
@@ -40,6 +41,7 @@ import v3UsersRouter from './routes/v3_users.js';
 import { acceptRouter as v3InvitesAcceptRouter } from './routes/v3_invites.js';
 import { teamRouter as v3TeamsTopRouter, playerRouter as v3PlayersTopRouter } from './routes/v3_players.js';
 import v3TopRouter from './routes/v3_top.js';
+import v3ScoringRouter, { fixtureMatchRouter as v3FixtureMatchRouter } from './routes/v3_scoring.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -76,6 +78,8 @@ app.use('/api/v3/teams',       v3TeamsTopRouter);
 app.use('/api/v3/players',     v3PlayersTopRouter);
 app.use('/api/v3/users',       v3UsersRouter);
 app.use('/api/v3/invites',     v3InvitesAcceptRouter);
+app.use('/api/v3/fixtures',    v3FixtureMatchRouter); // POST /:id/match
+app.use('/api/v3/matches',     v3ScoringRouter);
 app.use('/api/v3',             v3TopRouter);
 
 // ── Admin wipe (basic-auth protected) ───────────────────────────────
@@ -222,7 +226,25 @@ app.use(express.static(__dirname, {
 
 // ── HTTP server + WebSocket ──────────────────────────────────────────
 const httpServer = http.createServer(app);
-createWss(httpServer);
+const legacyWss = createWss(httpServer);
+const matchWss = createMatchWss(httpServer);
+
+// Single upgrade dispatcher — routes by URL so the legacy /ws and the
+// new /ws/match/:id servers can both run on the same HTTP listener.
+httpServer.on('upgrade', (req, socket, head) => {
+  const url = req.url || '';
+  if (url === '/ws' || url.startsWith('/ws?')) {
+    legacyWss.handleUpgrade(req, socket, head, (ws) => {
+      legacyWss.emit('connection', ws, req);
+    });
+    return;
+  }
+  if (MATCH_PATH_RE.test(url)) {
+    handleMatchUpgrade(req, socket, head, matchWss);
+    return;
+  }
+  socket.destroy();
+});
 
 // ── Boot sequence ────────────────────────────────────────────────────
 async function start() {

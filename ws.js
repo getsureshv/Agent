@@ -13,7 +13,11 @@ const rooms = new Map();
  * @returns {WebSocketServer}
  */
 export function createWss(httpServer) {
-  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  // noServer mode so multiple WebSocket endpoints can coexist on one HTTP
+  // server. The upgrade dispatcher in server.js routes /ws here.
+  const wss = new WebSocketServer({ noServer: true });
+  // Expose so the upgrade dispatcher can find us.
+  httpServer._legacyWss = wss;
 
   // Heartbeat interval — keeps connections alive and detects stale clients
   const HEARTBEAT_INTERVAL = 30_000;
@@ -77,7 +81,7 @@ export function createWss(httpServer) {
     });
   });
 
-  console.log('[ws] WebSocket server listening on /ws');
+  console.log('[ws] legacy /ws WebSocket server ready (noServer)');
   return wss;
 }
 

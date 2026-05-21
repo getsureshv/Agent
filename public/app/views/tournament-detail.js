@@ -199,6 +199,22 @@ function renderInviteResult(ctx, resultBox, inviteResp, recipientEmail) {
   });
 }
 
+// Create the match row for a fixture (idempotent) then navigate to the
+// captain SPA scoring view. Admin & assigned scorer & team captain can all
+// do this; the server enforces it.
+async function startScoring(fixture) {
+  try {
+    let matchId = fixture.match_id;
+    if (!matchId) {
+      const r = await api.post(`/api/v3/fixtures/${fixture.id}/match`);
+      matchId = r.match_id;
+    }
+    window.location.href = `/app/captain/#/matches/${matchId}/score`;
+  } catch (err) {
+    toast(err.message || 'Could not start scoring', 'error');
+  }
+}
+
 // ── Fixtures tab ───────────────────────────────────────────────────
 async function renderFixtures(container, ctx, tournament, isOwner, refresh) {
   let fixtures = [], teams = [];
@@ -274,6 +290,12 @@ async function renderFixtures(container, ctx, tournament, isOwner, refresh) {
       f.scorer_name ? `Scorer: ${f.scorer_name}` : 'Scorer: unassigned',
     ].join(' · ');
     const actions = [];
+    // Anyone with auth can see the button, but the underlying API will reject
+    // non-scorers / non-captains / non-owners with 403.
+    actions.push(el('button', {
+      class: 'btn btn-sm',
+      onClick: () => startScoring(f),
+    }, f.match_id ? 'Open scoring' : 'Start scoring'));
     if (isOwner) {
       actions.push(el('button', {
         class: 'btn btn-sm',
