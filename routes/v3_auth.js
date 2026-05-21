@@ -128,8 +128,35 @@ router.post('/logout', async (req, res) => {
 });
 
 // GET /api/v3/auth/me
-router.get('/me', requireUser, (req, res) => {
-  return res.status(200).json({ user: publicUser(req.user) });
+router.get('/me', requireUser, async (req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT p.id, p.player_code, p.team_id, p.profile_status,
+              te.name AS team_name,
+              te.tournament_id, t.name AS tournament_name
+         FROM v3_players p
+         JOIN v3_teams te ON te.id = p.team_id
+         JOIN v3_tournaments t ON t.id = te.tournament_id
+        WHERE p.user_id = $1
+        ORDER BY p.created_at ASC`,
+      [req.user.id]
+    );
+    return res.status(200).json({
+      user: publicUser(req.user),
+      players: r.rows.map((row) => ({
+        id: row.id,
+        player_code: row.player_code,
+        team_id: row.team_id,
+        team_name: row.team_name,
+        tournament_id: row.tournament_id,
+        tournament_name: row.tournament_name,
+        profile_status: row.profile_status,
+      })),
+    });
+  } catch (err) {
+    console.error('[v3_auth] me', err.message);
+    return res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_ERROR' });
+  }
 });
 
 export default router;
