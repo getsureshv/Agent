@@ -144,6 +144,21 @@ form .err { color: var(--danger); font-size: 0.85rem; margin: 8px 0; min-height:
 .inline-check { display: inline-flex; align-items: center; gap: 4px; color: var(--text-dim); font-size: 0.85rem; margin: 0; }
 .inline-check input { width: auto; }
 
+/* Scoring view (captain SPA) */
+.lock-bar { padding: 8px 12px; border-radius: var(--radius); background: var(--bg-elev);
+  border: 1px solid var(--border); margin-bottom: 12px; font-size: 0.88rem; }
+.lock-bar.lock-mine { border-color: var(--success); color: var(--text); }
+.lock-bar.lock-other { border-color: var(--danger); color: var(--text); }
+.score-header { display: flex; flex-direction: column; gap: 4px; }
+.facing-box { display: flex; gap: 12px; flex-wrap: wrap; }
+.player-picker { flex: 1 1 30%; min-width: 160px; }
+.player-picker select { margin-top: 2px; }
+.pad-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+.pad-row .btn-num { flex: 1 1 60px; min-width: 60px; font-size: 1.2rem; padding: 14px 0; }
+.extras-row .btn { flex: 1 1 100px; }
+.lineup-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 4px 12px; margin-top: 8px; }
+.lineup-row { display: inline-flex; align-items: center; gap: 6px; padding: 4px 0; font-size: 0.88rem; color: var(--text); }
+
 /* Mobile */
 @media (max-width: 600px) {
   main { padding: 16px 12px; }

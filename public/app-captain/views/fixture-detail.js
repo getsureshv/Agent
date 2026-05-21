@@ -43,17 +43,23 @@ export async function renderFixture(view, ctx, fixtureId) {
 
   const scoreBtn = el('button', {
     class: 'btn',
-    onClick: () => {
-      toast('Scoring UI ships in PR 4', 'success');
+    onClick: async () => {
+      try {
+        let matchId = fixture.match_id;
+        if (!matchId) {
+          const r = await (await fetch(`/api/v3/fixtures/${fixture.id}/match`,
+            { method: 'POST', credentials: 'include' })).json();
+          if (!r.match_id) {
+            toast(r.error || 'Could not start scoring', 'error');
+            return;
+          }
+          matchId = r.match_id;
+        }
+        location.hash = `#/matches/${matchId}/score`;
+      } catch (err) {
+        toast(err.message || 'Could not start scoring', 'error');
+      }
     },
-  }, 'Score this match');
-  if (fixture.scorer_user_id !== ctx.user.id) {
-    scoreBtn.disabled = true;
-    scoreBtn.title = 'You are not assigned as scorer for this fixture';
-  }
+  }, fixture.match_id ? 'Open scoring' : 'Score this match');
   view.appendChild(el('div', { class: 'row', style: 'margin-top: 16px;' }, [scoreBtn]));
-
-  view.appendChild(el('h2', { style: 'margin-top: 24px;' }, 'Scorecards'));
-  view.appendChild(el('p', { class: 'muted' },
-    'Scorecards will appear here once scoring begins (PR 4).'));
 }

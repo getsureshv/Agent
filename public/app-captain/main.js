@@ -3,6 +3,7 @@ import { el, clear, toast } from '/shared/ui.js';
 import { renderDashboard } from './views/dashboard.js';
 import { renderTeam } from './views/team-detail.js';
 import { renderFixture } from './views/fixture-detail.js';
+import { renderScoreMatch } from './views/score-match.js';
 
 const state = { user: null };
 
@@ -58,6 +59,11 @@ async function route() {
   if (route === 'dashboard') return renderDashboard(view, ctx);
   if (route === 'teams' && rest)    return renderTeam(view, ctx, rest);
   if (route === 'fixtures' && rest) return renderFixture(view, ctx, rest);
+  if (route === 'matches' && rest) {
+    // matches/<id>/score (or matches/<id> later, when we add a read-only view)
+    const [id, sub] = rest.split('/');
+    if (sub === 'score') return renderScoreMatch(view, ctx, id);
+  }
 
   location.hash = '#/dashboard';
 }
