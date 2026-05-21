@@ -10,11 +10,13 @@ import { buildShareUrl } from '../lib/util.js';
 
 const ROLES = new Set(['batsman', 'bowler', 'all-rounder', 'wicket-keeper', null, undefined, '']);
 
-// Slim cricket-only fields a captain may edit. Anything else (profile
-// detail, verification, link to a user) is admin-only.
+// Slim cricket-only fields a captain may edit, plus the player's contact
+// email which doubles as the default destination when the captain sends
+// the profile invite. Everything else (DOB, address, batting/bowling
+// style, verification, link to a user) flows through PATCH /:id/profile.
 const CAPTAIN_FIELDS = new Set([
   'name', 'jersey_number', 'batting_order', 'is_wicket_keeper',
-  'is_captain', 'role', 'notes',
+  'is_captain', 'role', 'notes', 'registered_email',
 ]);
 
 const CATEGORIES = new Set(['mens', 'womens', 'youth', 'mixed', null, '']);
@@ -177,14 +179,22 @@ teamRouter.post('/:teamId/players', requireUser, requireTeamCaptainOrAdmin, asyn
   const firstName = b.first_name ? String(b.first_name).trim() : null;
   const lastName  = b.last_name  ? String(b.last_name).trim()  : null;
 
+  let registeredEmail = null;
+  if ('registered_email' in b && b.registered_email !== null && b.registered_email !== '') {
+    registeredEmail = String(b.registered_email).trim();
+    if (!EMAIL_RE.test(registeredEmail)) {
+      return res.status(400).json({ error: 'invalid registered_email', code: 'INVALID_INPUT' });
+    }
+  }
+
   try {
     const r = await pool.query(
       `INSERT INTO v3_players
          (team_id, name, jersey_number, batting_order, is_wicket_keeper, is_captain,
-          role, notes, first_name, last_name,
+          role, notes, first_name, last_name, registered_email,
           player_code, created_by_user_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-               gen_player_code(), $11)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
+               gen_player_code(), $12)
        RETURNING *`,
       [
         req.team.id, name,
@@ -192,7 +202,7 @@ teamRouter.post('/:teamId/players', requireUser, requireTeamCaptainOrAdmin, asyn
         battingOrder,
         !!b.is_wicket_keeper, !!b.is_captain,
         role || null, b.notes ? String(b.notes) : null,
-        firstName, lastName,
+        firstName, lastName, registeredEmail,
         req.user.id,
       ]
     );
@@ -274,6 +284,18 @@ playerRouter.patch('/:id', requireUser, loadPlayerTeam, requireTeamCaptainOrAdmi
     set('role', b.role || null);
   }
   if ('notes' in b) set('notes', b.notes ? String(b.notes) : null);
+  if ('registered_email' in b) {
+    const raw = b.registered_email;
+    if (raw === null || raw === '') {
+      set('registered_email', null);
+    } else {
+      const v = String(raw).trim();
+      if (!EMAIL_RE.test(v)) {
+        return res.status(400).json({ error: 'invalid registered_email', code: 'INVALID_INPUT' });
+      }
+      set('registered_email', v);
+    }
+  }
 
   if (fields.length === 0) {
     return res.status(400).json({ error: 'no updatable fields supplied', code: 'INVALID_INPUT' });
