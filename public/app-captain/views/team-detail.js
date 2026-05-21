@@ -70,6 +70,7 @@ const PROFILE_BADGES = {
 function addForm(teamId, refresh) {
   const errBox = el('div', { class: 'err' });
   const name = el('input', { type: 'text', placeholder: 'Player name' });
+  const email = el('input', { type: 'email', placeholder: 'Email (optional, used for invite)' });
   const order = el('input', { type: 'number', min: '1', max: '15', placeholder: '#' });
   const role = el('select', {},
     ROLE_OPTIONS.map((r) => el('option', { value: r }, r || '— role —')));
@@ -79,7 +80,7 @@ function addForm(teamId, refresh) {
   const card = el('div', { class: 'card' }, [
     el('h3', {}, 'Add player'),
     el('div', { class: 'row' }, [
-      name, order, role,
+      name, email, order, role,
       el('label', { class: 'inline-check' }, [wk, ' WK']),
       el('label', { class: 'inline-check' }, [cap, ' C']),
       el('button', {
@@ -90,12 +91,13 @@ function addForm(teamId, refresh) {
           try {
             await api.post(`/api/v3/teams/${teamId}/players`, {
               name: name.value.trim(),
+              registered_email: email.value.trim() || null,
               batting_order: order.value ? parseInt(order.value, 10) : null,
               role: role.value || null,
               is_wicket_keeper: wk.checked,
               is_captain: cap.checked,
             });
-            name.value = ''; order.value = ''; role.value = '';
+            name.value = ''; email.value = ''; order.value = ''; role.value = '';
             wk.checked = false; cap.checked = false;
             refresh();
           } catch (err) { errBox.textContent = err.message; }
@@ -110,11 +112,14 @@ function addForm(teamId, refresh) {
 function playerRow(p, refresh) {
   const tr = el('tr', {});
   tr.appendChild(el('td', {}, p.batting_order == null ? '' : String(p.batting_order)));
-  // Name + small player_code
+  // Name + small player_code + email
   tr.appendChild(el('td', {}, [
     el('div', {}, p.name),
     p.player_code
       ? el('div', { class: 'muted', style: 'font-family: monospace; font-size: 0.72rem;' }, p.player_code)
+      : null,
+    p.registered_email
+      ? el('div', { class: 'muted', style: 'font-size: 0.72rem;' }, p.registered_email)
       : null,
   ]));
   tr.appendChild(el('td', {}, p.role || ''));
@@ -157,7 +162,11 @@ function playerRow(p, refresh) {
 
 function showInviteModal(p, refresh) {
   const errBox = el('div', { class: 'err' });
-  const email = el('input', { type: 'email', placeholder: 'player@example.com' });
+  const email = el('input', {
+    type: 'email',
+    placeholder: 'player@example.com',
+    value: p.registered_email || '',
+  });
   const resultBox = el('div', {});
   const body = el('div', {}, [
     el('p', {}, `Invite `, el('strong', {}, p.name), ` to fill in their profile:`),
@@ -212,7 +221,7 @@ function showResendModal(p, refresh) {
       class: 'btn',
       onClick: async () => {
         errBox.textContent = '';
-        const addr = prompt(`Email to send invite to?`, '');
+        const addr = prompt(`Email to send invite to?`, p.registered_email || '');
         if (!addr || !addr.trim()) return;
         try {
           const r = await api.post(`/api/v3/players/${p.id}/invite`, { email: addr.trim() });
@@ -249,6 +258,7 @@ function renderInviteResult(box, inviteResp, recipientEmail) {
 function showEditModal(p, refresh) {
   const errBox = el('div', { class: 'err' });
   const name = el('input', { type: 'text', value: p.name });
+  const email = el('input', { type: 'email', value: p.registered_email || '', placeholder: 'player@example.com' });
   const order = el('input', { type: 'number', min: '1', max: '15',
     value: p.batting_order == null ? '' : String(p.batting_order) });
   const role = el('select', {},
@@ -260,6 +270,7 @@ function showEditModal(p, refresh) {
 
   const body = el('div', {}, [
     el('label', {}, 'Name'), name,
+    el('label', {}, 'Email (used when sending invite)'), email,
     el('label', {}, 'Batting order (1..15)'), order,
     el('label', {}, 'Role'), role,
     el('div', { class: 'checkbox-row' }, [wk, el('label', { style: 'margin: 0;' }, 'Wicket keeper')]),
@@ -278,6 +289,7 @@ function showEditModal(p, refresh) {
         try {
           await api.patch(`/api/v3/players/${p.id}`, {
             name: name.value.trim(),
+            registered_email: email.value.trim() || null,
             batting_order: order.value ? parseInt(order.value, 10) : null,
             role: role.value || null,
             is_wicket_keeper: wk.checked,
