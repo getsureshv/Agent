@@ -1,5 +1,5 @@
-import { auth } from './auth.js';
-import { el, clear, toast } from './ui.js';
+import { auth } from '/shared/auth.js';
+import { el, clear, toast } from '/shared/ui.js';
 import { renderLogin } from './views/login.js';
 import { renderDashboard } from './views/dashboard.js';
 import { renderTournament } from './views/tournament-detail.js';

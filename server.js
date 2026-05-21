@@ -38,6 +38,8 @@ import v3AuthRouter from './routes/v3_auth.js';
 import v3TournamentsRouter from './routes/v3_tournaments.js';
 import v3UsersRouter from './routes/v3_users.js';
 import { acceptRouter as v3InvitesAcceptRouter } from './routes/v3_invites.js';
+import { teamRouter as v3TeamsTopRouter, playerRouter as v3PlayersTopRouter } from './routes/v3_players.js';
+import v3TopRouter from './routes/v3_top.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -70,8 +72,11 @@ app.use('/api/matches',     matchesRouter);
 // v3 routes — mounted alongside legacy paths; PR 5 will retire the legacy ones.
 app.use('/api/v3/auth',        v3AuthRouter);
 app.use('/api/v3/tournaments', v3TournamentsRouter);
+app.use('/api/v3/teams',       v3TeamsTopRouter);
+app.use('/api/v3/players',     v3PlayersTopRouter);
 app.use('/api/v3/users',       v3UsersRouter);
 app.use('/api/v3/invites',     v3InvitesAcceptRouter);
+app.use('/api/v3',             v3TopRouter);
 
 // ── Admin wipe (basic-auth protected) ───────────────────────────────
 const adminPassword = process.env.ADMIN_PASSWORD;
@@ -162,17 +167,37 @@ app.get('/pwa/*', (req, res) => {
   res.sendFile(path.join(__dirname, 'pwa', 'index.html'));
 });
 
+// ── Shared SPA assets — served at /shared ────────────────────────────
+// Stylesheets and small helper modules used by both the admin and captain SPAs.
+app.use('/shared', express.static(path.join(__dirname, 'public/shared'), {
+  dotfiles: 'ignore',
+}));
+
+// ── v3 captain SPA — served at /app/captain ──────────────────────────
+// IMPORTANT: registered BEFORE the admin /app static so /app/captain/*
+// resolves to the captain shell, not /app/captain.html under admin.
+function noCacheHtml(res, filePath) {
+  if (path.basename(filePath) === 'index.html') {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  }
+}
+app.use('/app/captain', express.static(path.join(__dirname, 'public/app-captain'), {
+  dotfiles: 'ignore',
+  setHeaders: noCacheHtml,
+}));
+app.get('/app/captain', (req, res) => res.redirect(301, '/app/captain/'));
+app.get('/app/captain/*', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.sendFile(path.join(__dirname, 'public/app-captain/index.html'));
+});
+
 // ── v3 admin SPA — served at /app ────────────────────────────────────
 // Vanilla-JS single page app. SPA fallback so client-side hash routing works.
 app.use('/app', express.static(path.join(__dirname, 'public/app'), {
   dotfiles: 'ignore',
-  setHeaders: (res, filePath) => {
-    if (path.basename(filePath) === 'index.html') {
-      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-      res.setHeader('Pragma', 'no-cache');
-      res.setHeader('Expires', '0');
-    }
-  },
+  setHeaders: noCacheHtml,
 }));
 app.get('/app', (req, res) => res.redirect(301, '/app/'));
 app.get('/app/*', (req, res) => {

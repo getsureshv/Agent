@@ -1,5 +1,5 @@
-import { api } from '../api.js';
-import { el, clear, modal, toast, copy, fmtDate } from '../ui.js';
+import { api } from '/shared/api.js';
+import { el, clear, modal, toast, copy, fmtDate } from '/shared/ui.js';
 
 export async function renderTournament(view, ctx, tournamentId) {
   let tournament, role;
@@ -218,6 +218,10 @@ async function renderFixtures(container, ctx, tournament, isOwner, refresh) {
           class: 'btn btn-secondary',
           onClick: () => showGenerateModal(tournament, refresh),
         }, 'Generate fixtures from teams'),
+        el('button', {
+          class: 'btn btn-secondary',
+          onClick: () => showGenerateModal(tournament, refresh, { replaceMode: true }),
+        }, 'Regenerate (replace unplayed)'),
       ]));
     }
     container.appendChild(card);
@@ -264,7 +268,7 @@ async function renderFixtures(container, ctx, tournament, isOwner, refresh) {
   container.appendChild(listCard);
 }
 
-function showGenerateModal(tournament, refresh) {
+function showGenerateModal(tournament, refresh, { replaceMode = false } = {}) {
   let format = 'round-robin';
   const errBox = el('div', { class: 'err' });
   const formatSel = el('select', {
@@ -274,22 +278,30 @@ function showGenerateModal(tournament, refresh) {
     el('option', { value: 'knockout' }, 'Knockout (paired in declared order)'),
   ]);
   const body = el('div', {}, [
-    el('p', {}, 'Generate fixtures for every existing team. New fixtures are added on top of any existing ones.'),
+    el('p', {}, replaceMode
+      ? 'This will delete every unplayed fixture in this tournament and replace them with the freshly generated set. Played fixtures (any with scoring events) are preserved.'
+      : 'Generate fixtures for every existing team. New fixtures are added on top of any existing ones.'),
     el('label', {}, 'Format'),
     formatSel,
     errBox,
   ]);
-  modal('Generate fixtures', body, [
+  modal(replaceMode ? 'Regenerate fixtures (replace unplayed)' : 'Generate fixtures', body, [
     { label: 'Cancel', class: 'btn btn-secondary', onClick: (close) => close() },
     {
-      label: 'Generate',
-      class: 'btn',
+      label: replaceMode ? 'Regenerate' : 'Generate',
+      class: replaceMode ? 'btn btn-danger' : 'btn',
       onClick: async (close) => {
         errBox.textContent = '';
         try {
-          const r = await api.post(`/api/v3/tournaments/${tournament.id}/fixtures/generate`, { format });
+          const path = `/api/v3/tournaments/${tournament.id}/fixtures/generate${replaceMode ? '?mode=replace' : ''}`;
+          const r = await api.post(path, { format });
           close();
-          toast(`Generated ${r.created} fixture${r.created === 1 ? '' : 's'}`);
+          if (replaceMode) {
+            const preservedN = (r.preserved_fixtures || []).length;
+            toast(`Regenerated. Created ${r.created}, deleted ${r.deleted}, preserved ${preservedN}.`);
+          } else {
+            toast(`Generated ${r.created} fixture${r.created === 1 ? '' : 's'}`);
+          }
           refresh();
         } catch (err) { errBox.textContent = err.message; }
       },

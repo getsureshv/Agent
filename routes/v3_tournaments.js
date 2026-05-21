@@ -110,24 +110,36 @@ router.get('/', requireUser, async (req, res) => {
 });
 
 // GET /api/v3/tournaments/:id
+// Public viewers see metadata only: name, slug, format, is_public, status, created_at.
+// Owners and members see the full row and counts.
 router.get('/:id', attachUser, requireTournamentReader, async (req, res) => {
   try {
+    const full = await pool.query('SELECT * FROM v3_tournaments WHERE id = $1', [req.tournament.id]);
+    const t = full.rows[0];
+    if (req.tournamentRole === 'public') {
+      return res.json({
+        tournament: {
+          id: t.id,
+          name: t.name,
+          slug: t.slug,
+          format: t.format,
+          is_public: t.is_public,
+          status: t.status,
+          created_at: t.created_at,
+        },
+        role: 'public',
+      });
+    }
     const counts = await pool.query(
       `SELECT
          (SELECT COUNT(*)::int FROM v3_teams WHERE tournament_id = $1)    AS teams_count,
          (SELECT COUNT(*)::int FROM v3_fixtures WHERE tournament_id = $1) AS fixtures_count`,
       [req.tournament.id]
     );
-    // Need full row for response (req.tournament has only some fields)
-    const full = await pool.query('SELECT * FROM v3_tournaments WHERE id = $1', [req.tournament.id]);
     return res.json({
-      tournament: rowToTournament(full.rows[0]),
+      tournament: rowToTournament(t),
       counts: counts.rows[0],
-      role: !req.user
-        ? 'public'
-        : (req.user.id === req.tournament.owner_user_id || req.user.is_global_admin
-            ? 'owner'
-            : 'member'),
+      role: req.tournamentRole,
     });
   } catch (err) {
     console.error('[v3_tournaments] get', err.message);

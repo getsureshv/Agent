@@ -1,5 +1,5 @@
-import { api } from '../api.js';
-import { el, modal, clear } from '../ui.js';
+import { api } from '/shared/api.js';
+import { el, modal, clear } from '/shared/ui.js';
 
 export async function renderDashboard(view, ctx) {
   view.appendChild(el('div', { class: 'row' }, [

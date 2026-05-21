@@ -1,5 +1,5 @@
-import { auth } from '../auth.js';
-import { el, clear } from '../ui.js';
+import { auth } from '/shared/auth.js';
+import { el, clear } from '/shared/ui.js';
 
 export function renderLogin(view, ctx, opts = {}) {
   let mode = 'login';

@@ -122,6 +122,69 @@ Error shape: `{ "error": "message", "code": "SNAKE_CASE" }`
 | `POST` | `/api/matches/:id/events` | Bearer (owner only) | Insert batch of events. Body: `MatchEvent[]` → `{ inserted, skipped }` |
 | `DELETE` | `/admin/wipe` | Basic-auth | Truncate all data tables (dev reset). Requires `ADMIN_PASSWORD`. |
 
+### v3 API (under `/api/v3`)
+
+The v3 stack uses session-cookie auth (`cs_session`) instead of device tokens.
+Mounted alongside the legacy `/api/*` routes; both will coexist until PR 5.
+
+**Auth** (`routes/v3_auth.js`)
+- `POST /api/v3/auth/signup` body `{email, password, name?}` — first signup becomes global admin.
+- `POST /api/v3/auth/login` body `{email, password}`.
+- `POST /api/v3/auth/logout`.
+- `GET  /api/v3/auth/me`.
+
+**Tournaments** (`routes/v3_tournaments.js`)
+- `POST   /api/v3/tournaments` (owner action; the caller becomes owner)
+- `GET    /api/v3/tournaments` — tournaments I own / captain in / am scorer for
+- `GET    /api/v3/tournaments/:id` — public callers see metadata only; members/owners get full row + counts
+- `PATCH  /api/v3/tournaments/:id` — owner only
+- `DELETE /api/v3/tournaments/:id` — owner only
+
+**Teams** (`routes/v3_teams.js`, `routes/v3_players.js`)
+- `POST   /api/v3/tournaments/:tid/teams` — owner only
+- `GET    /api/v3/tournaments/:tid/teams` — **member only** (rosters are not public)
+- `PATCH  /api/v3/tournaments/:tid/teams/:teamId`, `DELETE …` — owner only
+- `GET    /api/v3/teams/:teamId` — member only; team detail with captain
+- `GET    /api/v3/teams/:teamId/players` — member only
+- `POST   /api/v3/teams/:teamId/players` — team captain OR tournament owner
+- `PATCH  /api/v3/players/:id`, `DELETE /api/v3/players/:id` — team captain OR tournament owner
+
+**Fixtures** (`routes/v3_fixtures.js`, `routes/v3_top.js`)
+- `POST   /api/v3/tournaments/:tid/fixtures` — owner only
+- `POST   /api/v3/tournaments/:tid/fixtures/generate?mode=add|replace` — owner only.
+  In `replace` mode, fixtures with no scoring events are deleted before generating;
+  played fixtures are preserved and returned in `preserved_fixtures`.
+- `GET    /api/v3/tournaments/:tid/fixtures` — public if tournament is public, but
+  scorer fields are stripped from anonymous responses.
+- `PATCH  /api/v3/tournaments/:tid/fixtures/:fixtureId`, `DELETE …` — owner only
+- `GET    /api/v3/fixtures/:id` — **member only** (full detail incl. scorer)
+
+**Matches** (`routes/v3_top.js`)
+- `GET /api/v3/matches/:id/score` — public when the tournament `is_public`,
+  member-only otherwise. Returns a stub today; PR 4 fills in the projection.
+
+**Invites** (`routes/v3_invites.js`)
+- `POST   /api/v3/tournaments/:tid/invites` — owner only. Captain re-invites for a
+  team auto-revoke any prior pending captain invite for that team
+  (`revoked_previous` counter in the response).
+- `GET    /api/v3/tournaments/:tid/invites`, `DELETE …/:inviteId` — owner only.
+- `GET    /api/v3/invites/:token` — public preview. 410 if expired or revoked.
+- `POST   /api/v3/invites/:token/accept` — requires auth, enforces email match,
+  refuses to clobber an existing captain (409 `TEAM_HAS_CAPTAIN`). Response includes
+  `redirect_to`: `/app/captain/#/dashboard` for captain invites, `/app/#/dashboard` otherwise.
+
+**Users** (`routes/v3_users.js`)
+- `GET /api/v3/users/search?q=` — prefix email match, auth required.
+
+### Admin / Captain UIs
+
+- **Admin SPA** at `/app/` (`public/app/`) — tournament owner / global admin.
+- **Captain SPA** at `/app/captain/` (`public/app-captain/`) — team captains
+  manage their roster; fixture detail shows scorer info and a Score-this-match
+  button (disabled / placeholder until PR 4).
+- **Invite landing** at `/invite/:token` — the admin SPA renders the accept page;
+  on success, captain invites bounce the browser to `/app/captain/`.
+
 ### WebSocket
 
 Connect to `ws://<host>/ws` (no auth on upgrade — read-only spectator).

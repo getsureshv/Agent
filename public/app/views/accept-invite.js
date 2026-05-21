@@ -1,6 +1,6 @@
-import { api } from '../api.js';
-import { auth } from '../auth.js';
-import { el, clear, toast } from '../ui.js';
+import { api } from '/shared/api.js';
+import { auth } from '/shared/auth.js';
+import { el, clear, toast } from '/shared/ui.js';
 import { renderLogin } from './login.js';
 
 export async function renderAcceptInvite(view, ctx, token) {
@@ -31,7 +31,8 @@ export async function renderAcceptInvite(view, ctx, token) {
 
   if (info.already_consumed) {
     intro.appendChild(el('p', { class: 'muted' }, 'This invite has already been accepted.'));
-    intro.appendChild(el('a', { href: '#/dashboard' }, 'Go to dashboard'));
+    const target = info.redirect_to || '/app/';
+    intro.appendChild(el('a', { href: target }, 'Continue'));
     return;
   }
 
@@ -73,6 +74,11 @@ async function accept(view, ctx, token) {
   try {
     const r = await api.post(`/api/v3/invites/${encodeURIComponent(token)}/accept`);
     toast('Invite accepted');
+    // Captain invites go to /app/captain; scorer invites stay in the admin SPA.
+    if (r.redirect_to && r.redirect_to.startsWith('/app/captain')) {
+      window.location.href = r.redirect_to;
+      return;
+    }
     ctx.navigate(`#/tournaments/${r.tournament_id}`);
   } catch (err) {
     view.appendChild(el('p', { class: 'err', style: 'margin-top: 16px;' }, err.message));

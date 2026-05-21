@@ -9,6 +9,11 @@ const router = Router({ mergeParams: true });
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function rowToInvite(r) {
+  let status;
+  if (r.consumed_at) status = 'consumed';
+  else if (r.revoked_at) status = 'revoked';
+  else if (new Date(r.expires_at).getTime() < Date.now()) status = 'expired';
+  else status = 'pending';
   return {
     id: r.id,
     token: r.token,
@@ -20,12 +25,15 @@ function rowToInvite(r) {
     invited_by: r.invited_by,
     consumed_at: r.consumed_at,
     consumed_by: r.consumed_by,
+    revoked_at: r.revoked_at || null,
     expires_at: r.expires_at,
     created_at: r.created_at,
-    status:
-      r.consumed_at ? 'consumed' :
-      (new Date(r.expires_at).getTime() < Date.now() ? 'expired' : 'pending'),
+    status,
   };
+}
+
+function redirectAfter(inv) {
+  return inv.role === 'captain' ? '/app/captain/#/dashboard' : '/app/#/dashboard';
 }
 
 function shareUrlFor(req, token) {
@@ -53,9 +61,10 @@ router.post('/', requireUser, requireTournamentOwner, async (req, res) => {
     return res.status(400).json({ error: 'invalid team_id', code: 'INVALID_INPUT' });
   }
 
+  const client = await pool.connect();
   try {
     if (teamId) {
-      const t = await pool.query(
+      const t = await client.query(
         'SELECT 1 FROM v3_teams WHERE id = $1 AND tournament_id = $2',
         [teamId, req.tournament.id]
       );
@@ -64,21 +73,45 @@ router.post('/', requireUser, requireTournamentOwner, async (req, res) => {
       }
     }
 
+    await client.query('BEGIN');
+
+    // Auto-revoke any pending, unexpired captain invites already issued for
+    // this team. Keeps "one live captain invite per team" as an invariant.
+    let revoked = 0;
+    if (role === 'captain' && teamId) {
+      const rev = await client.query(
+        `UPDATE v3_invites
+            SET revoked_at = NOW()
+          WHERE team_id = $1
+            AND role = 'captain'
+            AND consumed_at IS NULL
+            AND revoked_at IS NULL
+            AND expires_at > NOW()`,
+        [teamId]
+      );
+      revoked = rev.rowCount;
+    }
+
     const token = crypto.randomBytes(18).toString('base64url');
-    const r = await pool.query(
+    const r = await client.query(
       `INSERT INTO v3_invites (token, tournament_id, email, role, team_id, invited_by)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING id`,
       [token, req.tournament.id, email, role, teamId, req.user.id]
     );
+    await client.query('COMMIT');
     return res.json({
       invite_id: r.rows[0].id,
       token,
       share_url: shareUrlFor(req, token),
+      revoked_previous: revoked,
     });
   } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
     console.error('[v3_invites] create', err.message);
     return res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_ERROR' });
+  } finally {
+    client.release();
   }
 });
 
@@ -126,7 +159,7 @@ const acceptRouter = Router();
 acceptRouter.get('/:token', async (req, res) => {
   try {
     const r = await pool.query(
-      `SELECT i.email, i.role, i.expires_at, i.consumed_at,
+      `SELECT i.email, i.role, i.expires_at, i.consumed_at, i.revoked_at,
               t.id AS tournament_id, t.name AS tournament_name,
               te.name AS team_name
          FROM v3_invites i
@@ -138,6 +171,12 @@ acceptRouter.get('/:token', async (req, res) => {
     );
     if (r.rowCount === 0) return res.status(404).json({ error: 'Invite not found', code: 'NOT_FOUND' });
     const row = r.rows[0];
+    if (row.revoked_at) {
+      return res.status(410).json({
+        error: 'This invite was superseded by a newer one. Ask the admin for the new link.',
+        code: 'REVOKED',
+      });
+    }
     if (new Date(row.expires_at).getTime() < Date.now()) {
       return res.status(410).json({ error: 'Invite expired', code: 'EXPIRED' });
     }
@@ -149,6 +188,7 @@ acceptRouter.get('/:token', async (req, res) => {
       email: row.email,
       expires_at: row.expires_at,
       already_consumed: !!row.consumed_at,
+      redirect_to: row.role === 'captain' ? '/app/captain/' : '/app/',
     });
   } catch (err) {
     console.error('[v3_invites] get', err.message);
@@ -174,6 +214,13 @@ acceptRouter.post('/:token/accept', requireUser, async (req, res) => {
       await client.query('ROLLBACK');
       return res.status(409).json({ error: 'Invite already consumed', code: 'CONSUMED' });
     }
+    if (inv.revoked_at) {
+      await client.query('ROLLBACK');
+      return res.status(410).json({
+        error: 'This invite was superseded by a newer one. Ask the admin for the new link.',
+        code: 'REVOKED',
+      });
+    }
     if (new Date(inv.expires_at).getTime() < Date.now()) {
       await client.query('ROLLBACK');
       return res.status(410).json({ error: 'Invite expired', code: 'EXPIRED' });
@@ -191,10 +238,20 @@ acceptRouter.post('/:token/accept', requireUser, async (req, res) => {
         await client.query('ROLLBACK');
         return res.status(400).json({ error: 'Captain invite is missing team_id', code: 'INVALID_INVITE' });
       }
-      await client.query(
-        'UPDATE v3_teams SET captain_user_id = $1, updated_at = NOW() WHERE id = $2',
+      // Only claim the captaincy if the slot is empty (or already this user).
+      const claim = await client.query(
+        `UPDATE v3_teams
+            SET captain_user_id = $1, updated_at = NOW()
+          WHERE id = $2 AND (captain_user_id IS NULL OR captain_user_id = $1)`,
         [req.user.id, inv.team_id]
       );
+      if (claim.rowCount === 0) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'This team already has a captain.',
+          code: 'TEAM_HAS_CAPTAIN',
+        });
+      }
     }
     // scorer invites: nothing to mutate beyond stamping the invite.
 
@@ -208,6 +265,7 @@ acceptRouter.post('/:token/accept', requireUser, async (req, res) => {
       tournament_id: inv.tournament_id,
       role: inv.role,
       team_id: inv.team_id,
+      redirect_to: redirectAfter(inv),
     });
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
