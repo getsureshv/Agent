@@ -24,6 +24,7 @@ import { createRequire } from 'node:module';
 
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import basicAuth from 'express-basic-auth';
 
 import { pool, runMigrations } from './db.js';
@@ -33,6 +34,7 @@ import healthRouter from './routes/health.js';
 import devicesRouter from './routes/devices.js';
 import tournamentsRouter from './routes/tournaments.js';
 import matchesRouter from './routes/matches.js';
+import v3AuthRouter from './routes/v3_auth.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -53,11 +55,17 @@ app.use('/api', cors({
 // Parse JSON bodies
 app.use(express.json({ limit: '1mb' }));
 
+// Parse cookies (needed by v3 session auth)
+app.use(cookieParser());
+
 // ── API Routes ───────────────────────────────────────────────────────
 app.use('/api/health',      healthRouter);
 app.use('/api/devices',     devicesRouter);
 app.use('/api/tournaments', tournamentsRouter);
 app.use('/api/matches',     matchesRouter);
+
+// v3 routes — mounted alongside legacy paths; PR 5 will retire the legacy ones.
+app.use('/api/v3/auth',     v3AuthRouter);
 
 // ── Admin wipe (basic-auth protected) ───────────────────────────────
 const adminPassword = process.env.ADMIN_PASSWORD;
